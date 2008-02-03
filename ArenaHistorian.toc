@@ -1,0 +1,22 @@
+## Interface: 20300
+## Title: Arena Historian
+## Version: $Revision: 322 $
+## Author: Mayen
+## Notes: Rated arena records
+## SavedVariables: ArenaHistDB
+## SavedVariablesPerCharacter: ArenaHistory
+## OptionalDeps: LibStub, OptionHouse, HousingAuthority
+
+lib\LibStub-1.0\LibStub-1.0.xml
+lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
+lib\AceAddon-3.0\AceAddon-3.0.xml
+lib\AceDB-3.0\AceDB-3.0.xml
+lib\AceEvent-3.0\AceEvent-3.0.xml
+lib\OptionHouse.lua
+lib\HousingAuthority.lua
+
+localization.enUS.lua
+localization.deDE.lua
+localization.frFR.lua
+
+ArenaHistorian.lua
