@@ -49,7 +49,7 @@ end
 
 -- Record new data
 function AH:UPDATE_BATTLEFIELD_SCORE()
-	if( select(2, IsActiveBattlefieldArena()) ) then
+	if( select(2, IsActiveBattlefieldArena()) and GetBattlefieldWinner() ) then
 		-- Figure out what bracket we're in
 		local bracket
 		for i=1, MAX_BATTLEFIELD_QUEUES do
@@ -111,7 +111,7 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 					end
 				end
 				
-				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", name, "", classToken, race, healingDone, damageDone))
+				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, race, healingDone, damageDone))
 			end
 		end
 		
@@ -121,7 +121,7 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 			
 			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>:
 			
-			[<time>::<playerTeam>::<enemyTeam>] = "<t/f>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
+			[<time>::<playerTeam>::<enemyTeam>] = "<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
 		]]
 		
 		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
@@ -129,9 +129,9 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 		
 		-- Save
 		ArenaHistory[bracket][index] = data
+
+		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 	end
-	
-	self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 end
 
 -- Are we inside an arena?
