@@ -65,6 +65,9 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 			return
 		end
 		
+		-- Resave list of player teams
+		self:ARENA_TEAM_UPDATE()
+		
 		-- Record rating/team names
 		local playerIndex, playerWon, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
 		for i=0, 1 do
@@ -84,6 +87,11 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 				enemyRating = newRating
 				enemyChange = newRating - oldRating
 			end
+		end
+		
+		-- Couldn't get data
+		if( not enemyName or not playerName ) then
+			return
 		end
 		
 		-- Score data
@@ -121,11 +129,13 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 			
 			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>:
 			
-			[<time>::<playerTeam>::<enemyTeam>] = "<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
+			The : at the end of team mates in the below are so we can do a gfind
+			
+			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>:;<enemy team mates>:"
 		]]
 		
 		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%d:%d:%d:%d;%s:;%s:", tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		local data = string.format("%s:%s:%s:%d:%d:%d:%d;%s:;%s:", GetRealZoneText(), GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
 		
 		-- Save
 		ArenaHistory[bracket][index] = data
