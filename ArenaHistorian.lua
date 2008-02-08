@@ -2,53 +2,44 @@
 	Arena Historian Mayen (Horde) from Icecrown (US) PvE
 ]]
 
-local AH = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")
+ArenaHistorian = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")
 
 local L = ArenaHistLocals
 local arenaTeams = {}
 local instanceType
 
-function AH:OnInitialize()
+function ArenaHistorian:OnInitialize()
 	self.defaults = {
 		profile = {
 		}
 	}
 	
-	if( not ArenaHistory ) then
-		ArenaHistory = {
+	if( not ArenaHistoryData ) then
+		ArenaHistoryData = {
 			[2] = {},
 			[3] = {},
 			[5] = {},
 		}
 	end
 	
-	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistDB", self.defaults)
+	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
+	self.history = setmetatable(ArenaHistoryData, {})
 end
 
-function AH:OnEnable()
+function ArenaHistorian:OnEnable()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("UPDATE_BATTLEFIELD_STATUS", "ZONE_CHANGED_NEW_AREA")
 	
 	self:ZONE_CHANGED_NEW_AREA()
-	self:ARENA_TEAM_UPDATE()
 end
 
-function AH:OnDisable()
+function ArenaHistorian:OnDisable()
 	self:UnregisterAllEvents()
 	instanceType = nil
 end
 
-function AH:ARENA_TEAM_UPDATE()
-	for i=1, MAX_ARENA_TEAMS do
-		local teamName, teamSize = GetArenaTeam(i)
-		if( teamName ) then
-			arenaTeams[teamName .. teamSize] = true
-		end
-	end
-end
-
 -- Record new data
-function AH:UPDATE_BATTLEFIELD_SCORE()
+function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 	if( select(2, IsActiveBattlefieldArena()) and GetBattlefieldWinner() ) then
 		-- Figure out what bracket we're in
 		local bracket
@@ -66,7 +57,12 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 		end
 		
 		-- Resave list of player teams
-		self:ARENA_TEAM_UPDATE()
+		for i=1, MAX_ARENA_TEAMS do
+			local teamName, teamSize = GetArenaTeam(i)
+			if( teamName ) then
+				arenaTeams[teamName .. teamSize] = true
+			end
+		end
 		
 		-- Record rating/team names
 		local playerIndex, playerWon, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
@@ -127,25 +123,23 @@ function AH:UPDATE_BATTLEFIELD_SCORE()
 		--[[
 			First set of name/class/race/spec are the players team, second set are enemy
 			
-			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>:
+			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>
 			
-			The : at the end of team mates in the below are so we can do a gfind
-			
-			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>:;<enemy team mates>:"
+			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
 		]]
 		
 		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%s:%s:%d:%d:%d:%d;%s:;%s:", GetRealZoneText(), GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", GetRealZoneText(), bracket, GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
 		
 		-- Save
-		ArenaHistory[bracket][index] = data
+		self.history[bracket][index] = data
 
 		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 	end
 end
 
 -- Are we inside an arena?
-function AH:ZONE_CHANGED_NEW_AREA()
+function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	local type = select(2, IsInInstance())
 	-- Inside an arena, but wasn't already
 	if( type == "arena" and type ~= instanceType ) then

@@ -2,7 +2,7 @@ if( GetLocale() ~= "frFR" ) then
 	return
 end
 
-ArenaHistLocal = setmetatable({
+ArenaHistLocals = setmetatable({
 
-}, {__index = ArenaHistLocal})
+}, {__index = ArenaHistLocals})
 

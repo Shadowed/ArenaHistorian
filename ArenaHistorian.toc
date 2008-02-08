@@ -3,8 +3,8 @@
 ## Version: $Revision: 322 $
 ## Author: Mayen
 ## Notes: Rated arena records
-## SavedVariables: ArenaHistDB
-## SavedVariablesPerCharacter: ArenaHistory
+## SavedVariables: ArenaHistorianDB
+## SavedVariablesPerCharacter: ArenaHistoryData
 ## OptionalDeps: LibStub, OptionHouse, HousingAuthority
 
 lib\LibStub-1.0\LibStub-1.0.xml
@@ -20,3 +20,4 @@ localization.deDE.lua
 localization.frFR.lua
 
 ArenaHistorian.lua
+gui.lua
