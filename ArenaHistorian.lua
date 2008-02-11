@@ -5,11 +5,16 @@
 ArenaHistorian = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")
 
 local L = ArenaHistLocals
-local enemyRaceInfo = {}
+local playerRaceInfo = {}
 local partyMap = {}
 local instanceType
+local alreadyInspected = {}
+local inspectQueue = {}
+local inspectedUnit
+local playerName
 
 function ArenaHistorian:OnInitialize()
+	-- Defaults
 	self.defaults = {
 		profile = {
 		}
@@ -23,12 +28,16 @@ function ArenaHistorian:OnInitialize()
 		}
 	end
 	
+	-- Prevents us from having to do 50 concats
 	for i=1, MAX_PARTY_MEMBERS do
 		partyMap[i] = "party" .. i .. "target"
 	end
 
+	-- Init DB
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
 	self.history = setmetatable(ArenaHistoryData, {})
+	
+	playerName = UnitName("player")
 end
 
 function ArenaHistorian:OnEnable()
@@ -43,6 +52,7 @@ function ArenaHistorian:OnDisable()
 	instanceType = nil
 end
 
+-- Last ditch effort
 function ArenaHistorian:RaceToToken(race)
 	for token, localRace in pairs(L["TOKENS"]) do
 		if( localRace == race ) then
@@ -55,7 +65,7 @@ end
 
 -- Record new data
 function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
-	if( select(2, IsActiveBattlefieldArena()) and GetBattlefieldWinner() ) then
+	if( GetBattlefieldWinner() ) then
 		-- Figure out what bracket we're in
 		local bracket
 		for i=1, MAX_BATTLEFIELD_QUEUES do
@@ -101,7 +111,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		end
 		
 		-- Couldn't get data
-		if( not enemyName or not playerName ) then
+		if( not enemyName or not playerName or not playerIndex ) then
 			return
 		end
 		
@@ -111,38 +121,27 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		for i=1, GetNumBattlefieldScores() do
 			local name, _, _, _, _, faction, _, race, class, classToken, damageDone, healingDone = GetBattlefieldScore(i)
 			
-			if( faction == playerIndex ) then
-				-- We SHOULD be able to get race information as if their name is a unit, but will fall back
-				-- to basically guessing it if we can't
-				if( UnitExists(name) ) then
-					if( UnitSex(name) == 2 ) then
-						race = string.upper(select(2, UnitRace(name))) .. "_MALE" 
-					else
-						race = string.upper(select(2, UnitRace(name))) .. "_FEMALE"
-					end
+			-- Get talent data from Remembrance if available
+			local spec = ""
+			if( IsAddOnLoaded("Remembrance") ) then
+				local server
+				if( string.match(name, "-") ) then
+					name, server = string.match(name, "(.-)%-(.*)$")
 				else
-					race = self:RaceToToken(race)
+					server = GetRealmName()	
 				end
-			
-				table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", name, "", classToken, race, healingDone, damageDone))
-			else
-				local spec = ""
-				if( IsAddOnLoaded("Remembrance") ) then
-					-- Get talent data if available
-					local server
-					if( string.match(name, "-") ) then
-						name, server = string.match(name, "(.-)%-(.*)$")
-					else
-						server = GetRealmName()	
-					end
 
-					local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
-					if( tree1 and tree2 and tree3 ) then
-						spec = tree1 .. "/" .. tree2 .. "/" .. tree3
-					end
+				local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
+				if( tree1 and tree2 and tree3 ) then
+					spec = tree1 .. "/" .. tree2 .. "/" .. tree3
 				end
-				
-				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, enemyRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+			end
+			
+			-- Add it into our teammate list
+			if( faction == playerIndex ) then
+				table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+			else
+				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			end
 		end
 		
@@ -165,6 +164,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 	end
 end
 
+-- Get enemy/team mate races
 function ArenaHistorian:PLAYER_TARGET_CHANGED()
 	self:ScanUnit("mouseover")
 end
@@ -174,28 +174,40 @@ function ArenaHistorian:UPDATE_MOUSEOVER_UNIT()
 end
 
 function ArenaHistorian:ScanUnit(unit)
-	if( UnitIsPlayer(unit) and UnitIsVisible(unit) and UnitIsEnemy("player", unit) ) then
+	if( UnitIsPlayer(unit) and UnitIsVisible(unit) ) then
 		local name, server = UnitName(unit)
-		name = name .. "-" .. server
+		if( server ) then
+			name = name .. "-" .. server
+		end
 
-		if( not enemyRaceInfo[name] ) then
+		if( not playerRaceInfo[name] ) then
 			if( UnitSex(unit) == 2 ) then
-				enemyRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
+				playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
 			else
-				enemyRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
+				playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
 			end
 		end
 	end
 end
+
 -- Are we inside an arena?
 function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	local type = select(2, IsInInstance())
+	
 	-- Inside an arena, but wasn't already
-	if( type == "arena" and type ~= instanceType ) then
+	if( type == "arena" and type ~= instanceType and select(2, IsActiveBattlefieldArena()) ) then
 		self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 		
+		-- Get party talents as well if Remembrance is installed
+		if( IsAddOnLoaded("Remembrance") ) then
+			self:RegisterEvent("INSPECT_TALENT_READY")
+			self:RegisterEvent("RAID_ROSTER_UPDATE")
+			self:RAID_ROSTER_UPDATE()
+		end
+		
+		-- Scan magic to make sure we get races of enemies
 		if( not self.scanFrame ) then
 			local timeElapsed = 0
 			self.scanFrame = CreateFrame("Frame")
@@ -221,8 +233,86 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	-- Was in an arena, but left it
 	elseif( type ~= "arena" and instanceType == "arena" ) then
 		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
+		self:UnregisterEvent("PLAYER_TARGET_CHANGED")
+		self:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
+		self:UnregisterEvent("RAID_ROSTER_UPDATE")
+		self:UnregisterEvent("INSPECT_TALENT_READY")
 		self.scanFrame:Hide()
+		
+		-- Clear temp, blah blah blah
+		inspectedUnit = nil
+		for k in pairs(alreadyInspected) do
+			alreadyInspected[k] = nil
+		end
+		
+		for i=#(inspectQueue), 1, -1 do
+			table.remove(inspectQueue, i)
+		end
 	end
 	
 	instanceType = type
+end
+
+-- INSPECTION --
+-- Scan party for talents
+function ArenaHistorian:RAID_ROSTER_UPDATE()
+	if( not GetPlayerBuffTexture(L["Arena Preparation"]) ) then
+		self:UnregisterEvent("RAID_ROSTER_UPDATE")
+		self:UnregisterEvent("INSPECT_TALENT_READY")
+		return
+	end
+	
+	-- Inspect the player first however
+	if( not alreadyInspected[playerName] ) then
+		alreadyInspected[playerName] = true
+		self:ScanUnit("player")
+		
+		table.insert(inspectQueue, name)
+		if( not inspectedUnit ) then
+			inspectedUnit = "player"
+			NotifyInspect(unit)
+		end
+	end
+	
+	-- Inspect raid
+	for i=1, GetNumRaidMembers() do
+		local unit = "raid" .. i
+		local name = UnitName(unit)
+		
+		if( UnitIsVisible(unit) and not alreadyInspected[name] ) then
+			alreadyInspected[name] = nil
+			self:ScanUnit(unit)
+			
+			table.insert(inspectQueue, name)
+			
+			-- Nobody else is queued yet, so start it up
+			if( not inspectedUnit ) then
+				inspectedUnit = unit
+				NotifyInspect(unit)
+			end
+		end
+	end
+end
+
+-- Inspect finished for our guy
+function ArenaHistorian:INSPECT_TALENT_READY()
+	if( inspectedUnit and UnitExists(inspectedUnit) ) then
+		-- Save their talent data
+		local name, server = UnitName(inspectedUnit)
+		ChatFrame1:AddMessage("Got data for " .. tostring(name))
+		Remembrance:SaveTalentInfo(name, server or GetRealmName(), (UnitClass(inspectedUnit)))	
+
+		-- Remove them from queue
+		for i=1, #(inspectQueue) do
+			if( inspectQueue[i] == inspectedUnit ) then
+				table.remove(inspectQueue, i)
+			end
+		end
+
+		-- Check if we have someone else in queue
+		inspectedUnit = inspectQueue[1]
+		if( inspectedUnit ) then
+			NotifyInspect(inspectedUnit)
+		end
+	end
 end

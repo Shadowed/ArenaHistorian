@@ -4,13 +4,15 @@ ArenaHistLocals = {
 	["Show 3vs3"] = "Show 3vs3",
 	["Show 5vs5"] = "Show 5vs5",
 	
-	["[%d Rating (%d Points)]"] = "[%d Rating (%d Points)]",
+	["%d Rating (%d Points)"] = "%d Rating (%d Points)",
 	
 	["Run Time: %s"] = "Run Time: %s",
-	["Won (%d) / Lost (%d)"] = "Won (%d) / Lost (%d)",
+	["Record: %s/%s"] = "Record: %s/%s",
+	["Zone: %s"] = "Zone: %s",
 	["%s - Damage (%d) / Healing (%d)"] = "%s - Damage (%d) / Healing (%d)",
 	
 	["Unknown"] = "Unknown",
+	["Arena Preparation"] = "Arena Preparation",
 
 	-- This is a simple race -> token map, we don't do vendor checks here
 	["TOKENS"] = {
@@ -26,11 +28,15 @@ ArenaHistLocals = {
 		["DRAENEI_FEMALE"] = "Draenei",
 	},	
 	
+	-- Zone -> abbreviation
+	["Blade's Edge Arena"] = "BEA",
+	["Nagrand Arena"] = "NA",
+	["Ruins of Lordaeron"] = "RoL",
+	
 	-- Token -> Text
 	["HUMAN_FEMALE"] = "Female Human",
 	["HUMAN_MALE"] = "Male Human",
 	
-
 	["DWARF_FEMALE"] = "Female Dwarf",
 	["DWARF_MALE"] = "Male Dwarf",
 	

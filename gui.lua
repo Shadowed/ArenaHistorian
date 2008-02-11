@@ -9,7 +9,7 @@ local MAX_TEAMS_SHOWN = 5
 local MAX_TEAM_MEMBERS = 5
 local DEEP_THRESHOLD = 30
 local FONT_SIZE = 10
-local ICON_SIZE = 15
+local ICON_SIZE = 16
 
 -- Stolen out of GlueXML
 local RACE_ICONS = {
@@ -23,15 +23,15 @@ local RACE_ICONS = {
 
 -- Tree data
 local TREE_ICONS = {
-	["SHAMAN"] = {"Spell_Fire_Volcano", "Spell_Nature_UnyieldingStamina", "Spell_Nature_HealingWaveGreater"},
-	["MAGE"] = {"Spell_Nature_WispSplode", "Spell_Fire_Fire", "Spell_Frost_FreezingBreath"},
-	["WARLOCK"] = {"Spell_Shadow_UnsummonBuilding", "Spell_Shadow_CurseOfTounges", "Spell_fire_Incinerate"},
-	["DRUID"] = {"Spell_Nature_Lightning", "Ability_Physical_Taunt", "Spell_Nature_HealingTouch"},
-	["WARRIOR"] = {"INV_Sword_27", "Ability_Warrior_BattleShout", "INV_Shield_06"},
-	["ROGUE"] = {"Ability_Rogue_Garrote", "INV_Weapon_ShortBlade_14", "Ability_Ambush"},
+	["SHAMAN"] = {"Spell_Nature_Lightning", "Spell_Nature_LightningShield", "Spell_Nature_MagicImmunity"},
+	["MAGE"] = {"Spell_Holy_MagicalSentry", "Spell_Fire_FlameBolt", "Spell_Frost_FrostBolt02"},
+	["WARLOCK"] = {"Spell_Shadow_DeathCoil", "Spell_Shadow_Metamorphosis", "Spell_Shadow_RainOfFire"},
+	["DRUID"] = {"Spell_Nature_Lightning", "Ability_Racial_BearForm", "Spell_Nature_HealingTouch"},
+	["WARRIOR"] = {"Ability_Rogue_Eviscerate", "Ability_Warrior_InnerRage", "INV_Shield_06"},
+	["ROGUE"] = {"Ability_Rogue_Eviscerate", "Ability_BackStab", "Ability_Stealth"},
 	["PALADIN"] = {"Spell_Holy_HolyBolt", "Spell_Holy_DevotionAura", "Spell_Holy_AuraOfLight"},
 	["HUNTER"] = {"Ability_Hunter_BeastTaming", "Ability_Marksmanship", "Ability_Hunter_SwiftStrike"},
-	["PRIEST"] = {"Spell_Holy_AuraOfLight", "Spell_Holy_LayOnHands", "Spell_Shadow_Possession"},
+	["PRIEST"] = {"Spell_Holy_WordFortitude", "Spell_Holy_HolyBolt", "Spell_Shadow_ShadowWordPain"},
 }
 
 function GUI:OnInitialize()
@@ -112,17 +112,23 @@ local function parseTeamData(...)
 		
 		table.insert(teamData, row)
 	end
-	
 
 	-- Alpha sort
 	table.sort(teamData, sortTeamInfo)
-	return teamData
+	
+	-- Create the team id
+	local teamID = ""
+	for id, data in pairs(teamData) do
+		teamID = teamID .. data.name
+	end
+	
+	return teamData, teamID
 end
 
 local function updateCache()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
-	local stats = arenaStats[self.frame.bracket]
+	local stats = arenaStats
 	
 	-- Convert it from our compact format, to the tably one
 	for id, data in pairs(ArenaHistorian.history[self.frame.bracket]) do
@@ -137,12 +143,30 @@ local function updateCache()
 			if( endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
 				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange = string.split(":", matchData)
+				
+				-- Generate the player and enemy team mate info
+				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
+				local enemyTeam, enemyTeamID = parseTeamData(string.split(":", enemyTeam))
+				
+				-- Store our win/lost record against this team, by the players they and we used
+				local teamID = playerTeamID .. enemyTeamID .. bracket .. enemyTeamName
+				
+				if( not stats[teamID] ) then
+					stats[teamID] = {won = 0, lost = 0}
+				end
+				
+				if( playerWon == "true" ) then
+					stats[teamID].won = stats[teamID].won + 1
+				else
+					stats[teamID].lost = stats[teamID].lost + 1
+				end
 
 				-- Match information
 				local matchTbl = {
 					zone = arenaZone,
 					runTime = tonumber(runTime) or 0,
 					won = (playerWon == "true"),
+					teamID = teamID,
 					
 					pTeamName = playerTeamName,
 					pRating = tonumber(pRating) or 0,
@@ -152,23 +176,11 @@ local function updateCache()
 					eRating = tonumber(eRating) or 0,
 					eChange = tonumber(eChange) or 0,
 					
-					playerTeam = parseTeamData(string.split(":", playerTeam)),
-					enemyTeam = parseTeamData(string.split(":", enemyTeam)),
+					playerTeam = playerTeam,
+					enemyTeam = enemyTeam,
 				}
 
 				table.insert(history, matchTbl)
-				
-				-- Store our total games won or lost to this team
-				-- I guess this should go by their team makeup and ours, I'll fix that later?
-				if( not stats[enemyTeamName] ) then
-					stats[enemyTeamName] = {won = 0, lost = 0}
-				end
-				
-				if( matchTbl.won ) then
-					stats[enemyTeamName].won = stats[enemyTeamName].won + 1
-				else
-					stats[enemyTeamName].lost = stats[enemyTeamName].lost + 1
-				end
 			end
 		end
 	end
@@ -256,26 +268,27 @@ local function updateRecords()
 	-- Display
 	local usedRows = 0
 	for id, matchInfo in pairs(history) do
-		if( id >= FauxScrollFrame_GetOffset(self.frame.scroll) and usedRows <= MAX_TEAMS_SHOWN ) then
+		if( id >= FauxScrollFrame_GetOffset(self.frame.scroll) and usedRows < MAX_TEAMS_SHOWN ) then
 			usedRows = usedRows + 1
 			
 			local row = self.rows[usedRows]
-			
+
 			-- Match info
 			row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
+			row.zoneText:SetFormattedText(L["Zone: %s"], L[matchInfo.zone] or L["Unknown"])
 			
 			-- Team stats
-			row.teamStats:SetFormattedText(L["Won (%d) / Lost (%d)"], arenaStats[self.frame.bracket][matchInfo.eTeamName].won, arenaStats[self.frame.bracket][matchInfo.eTeamName].lost)
+			row.teamRecord:SetFormattedText(L["Record: %s/%s"], GREEN_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].lost .. FONT_COLOR_CODE_CLOSE)
 			
 			-- Enemy team display
 			row.enemyTeam:SetText(matchInfo.eTeamName)
-			row.enemyInfo:SetFormattedText(L["[%d Rating (%d Points)]"], matchInfo.eRating, matchInfo.eChange)
+			row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
 			
 			setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam)
 
 			-- Player team display
 			row.playerTeam:SetText(matchInfo.pTeamName)
-			row.playerInfo:SetFormattedText(L["[%d Rating (%d Points)]"], matchInfo.pRating, matchInfo.pChange)
+			row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
 			
 			setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam)
 			
@@ -363,7 +376,7 @@ local function createTeamRows(frame, firstParent)
 		row.name:SetWidth(55)
 		row.name:SetScript("OnEnter", OnEnter)
 		row.name:SetScript("OnLeave", OnLeave)
-		row.name:SetPoint("TOPLEFT", row.specIcon, "TOPRIGHT", 5, 0)
+		row.name:SetPoint("TOPLEFT", row.specIcon, "TOPRIGHT", 4, 0)
 
 		-- So we can do word wrapping
 		row.name:SetText("*")
@@ -375,7 +388,7 @@ local function createTeamRows(frame, firstParent)
 		if( i > 1 ) then
 			row:SetPoint("TOPLEFT", teamRows[i - 1].name, "TOPRIGHT", 7, 0)
 		else
-			row:SetPoint("TOPLEFT", firstParent, "TOPLEFT", 2, -16)
+			row:SetPoint("TOPLEFT", firstParent, "TOPLEFT", 0, -16)
 		end
 	end
 	
@@ -384,7 +397,7 @@ end
 
 local function createTeamInfo(parent)
 	local frame = CreateFrame("Frame", nil, parent)
-	frame:SetWidth(520)
+	frame:SetWidth(522)
 	frame:SetHeight(75)
 	frame:SetBackdrop(infoBackdrop)
 	frame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
@@ -395,30 +408,34 @@ local function createTeamInfo(parent)
 	frame.matchInfo:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
 	frame.matchInfo:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -3)
 
-	-- Team stats
-	frame.teamStats = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	frame.teamStats:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
-	frame.teamStats:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -40)
+	frame.zoneText = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	frame.zoneText:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
+	frame.zoneText:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -95, -40)
 
+	-- Team stats
+	frame.teamRecord = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	frame.teamRecord:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
+	frame.teamRecord:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -40)
+	
 	-- Enemy team data
-	frame.enemyTeam = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	frame.enemyTeam:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
+	frame.enemyTeam = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	frame.enemyTeam:SetFont(GameFontNormalSmall:GetFont(), FONT_SIZE)
 	frame.enemyTeam:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -3)
 
-	frame.enemyInfo = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	frame.enemyInfo:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
-	frame.enemyInfo:SetPoint("TOPLEFT", frame.enemyTeam, "TOPRIGHT", 15, 0)
+	frame.enemyInfo = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	frame.enemyInfo:SetFont(GameFontNormalSmall:GetFont(), FONT_SIZE)
+	frame.enemyInfo:SetPoint("TOPLEFT", frame, "TOPLEFT", 175, -3)
 	
 	frame.enemyRows = createTeamRows(frame, frame.enemyTeam)
 
 	-- Player team data
-	frame.playerTeam = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	frame.playerTeam:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
+	frame.playerTeam = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	frame.playerTeam:SetFont(GameFontNormalSmall:GetFont(), FONT_SIZE)
 	frame.playerTeam:SetPoint("TOPLEFT", frame, "TOPLEFT", 4, -40)
 
-	frame.playerInfo = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	frame.playerInfo:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
-	frame.playerInfo:SetPoint("TOPLEFT", frame.playerTeam, "TOPRIGHT", 15, 0)
+	frame.playerInfo = frame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	frame.playerInfo:SetFont(GameFontNormalSmall:GetFont(), FONT_SIZE)
+	frame.playerInfo:SetPoint("TOPLEFT", frame, "TOPLEFT", 175, -40)
 
 	frame.playerRows = createTeamRows(frame, frame.playerTeam)
 	
