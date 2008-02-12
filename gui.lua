@@ -3,6 +3,7 @@ local GUI = ArenaHistorian:NewModule("GUI")
 local L = ArenaHistLocals
 local arenaData = {[2] = {}, [3] = {}, [5] = {}}
 local arenaStats = {[2] = {}, [3] = {}, [5] = {}}
+local arenaMap = {[2] = {}, [3] = {}, [5] = {}}
 local alreadyParsed = {}
 
 local MAX_TEAMS_SHOWN = 5
@@ -136,6 +137,7 @@ end
 local function updateCache()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
+	local mapStats = arenaMap[self.frame.bracket]
 	local stats = arenaStats
 	
 	-- Convert it from our compact format, to the tably one
@@ -156,6 +158,13 @@ local function updateCache()
 				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
 				local enemyTeam, enemyTeamID = parseTeamData(string.split(":", enemyTeam))
 				
+				-- Map stat
+				if( not mapStats[arenaZone] ) then
+					mapStats[arenaZone] = {played = 0, won = 0, lost = 0}
+				end
+
+				mapStats[arenaZone].played = mapStats[arenaZone].played + 1
+
 				-- Store our win/lost record against this team, by the players they and we used
 				local teamID = playerTeamID .. enemyTeamID .. bracket .. enemyTeamName
 				
@@ -165,9 +174,12 @@ local function updateCache()
 				
 				if( playerWon == "true" ) then
 					stats[teamID].won = stats[teamID].won + 1
+					mapStats[arenaZone].won = mapStats[arenaZone].won + 1
 				else
 					stats[teamID].lost = stats[teamID].lost + 1
+					mapStats[arenaZone].lost = mapStats[arenaZone].lost + 1
 				end
+				
 
 				-- Match information
 				local matchTbl = {
@@ -315,6 +327,7 @@ local function updateRecords()
 		end
 	end
 	
+	-- Set record numbers
 	local browseMax = offset + MAX_TEAMS_SHOWN
 	if( browseMax > totalVisible ) then
 		browseMax = totalVisible
@@ -328,7 +341,17 @@ local function updateRecords()
 	self.tabFrame.totalRecords:SetFormattedText("|cffffffff%d|r", #(history))
 	self.tabFrame.totalVisible:SetFormattedText("|cffffffff%d|r", totalVisible)
 	self.tabFrame.browsing:SetFormattedText("|cffffffff%d|r - |cffffffff%d|r", offset, browseMax)
-		
+	
+	-- Now set map stats
+	self.tabFrame.RoL:SetText("---------")
+	self.tabFrame.BEA:SetText("---------")
+	self.tabFrame.NA:SetText("---------")
+	
+
+	for key, data in pairs(arenaMap[self.frame.bracket]) do
+		self.tabFrame[key]:SetFormattedText("%.2f%% (%s) - %s:%s", data.played / #(history) * 100, data.played, GREEN_FONT_COLOR_CODE .. data.won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. data.lost .. FONT_COLOR_CODE_CLOSE)
+
+	end
 
 	-- Hide unused
 	for i=usedRows + 1, MAX_TEAMS_SHOWN do
@@ -778,6 +801,37 @@ function GUI:CreateFrame()
 	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -110)
 
 	self.tabFrame.browsing = text
+	
+	-- MAP STATS
+	-- Blade's Edge Arena
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Blade's Edge Arena"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -190)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -202)
+	
+	self.tabFrame.BEA = text
+
+	-- Nagrand Arena
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Nagrand Arena"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -220)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -232)
+	
+	self.tabFrame.NA = text
+
+	-- Ruins of Lordaeron
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Ruins of Lordaeron"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -250)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -262)
+	
+	self.tabFrame.RoL = text
 
 	-- Create the display buttons
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
