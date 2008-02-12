@@ -8,6 +8,7 @@ local L = ArenaHistLocals
 local playerRaceInfo = {}
 local partyMap = {}
 local instanceType
+local arenaTeams = {}
 local alreadyInspected = {}
 local inspectQueue = {}
 local inspectedUnit
@@ -220,7 +221,7 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 					for i=1, GetNumPartyMembers() do
 						local unit = partyMap[i]
 						if( UnitExists(unit) ) then
-							self:ScanUnit(unit)
+							ArenaHistorian:ScanUnit(unit)
 						end
 						
 					end
