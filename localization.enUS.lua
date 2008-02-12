@@ -17,7 +17,11 @@ ArenaHistLocals = {
 	["Search"] = "Search...",
 	["Min rate"] = "Min rate",
 	["Max rate"] = "Max rate",
-
+	
+	["Total records"] = "Total records",
+	["Total visible"] = "Total visible",
+	["Browsing"] = "Browsing",
+	
 	-- This is a simple race -> token map, we don't do vendor checks here
 	["TOKENS"] = {
 		["HUMAN_FEMALE"] = "Human",

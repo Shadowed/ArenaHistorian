@@ -122,17 +122,24 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		for i=1, GetNumBattlefieldScores() do
 			local name, _, _, _, _, faction, _, race, class, classToken, damageDone, healingDone = GetBattlefieldScore(i)
 			
+			local server, parseName
+			if( string.match(name, "-") ) then
+				parseName, server = string.match(name, "(.-)%-(.*)$")
+			else
+				server = GetRealmName()	
+				parseName = name
+			end
+
 			-- Get talent data from Remembrance if available
 			local spec = ""
-			if( IsAddOnLoaded("Remembrance") ) then
-				local server
-				if( string.match(name, "-") ) then
-					name, server = string.match(name, "(.-)%-(.*)$")
-				else
-					server = GetRealmName()	
-				end
+			
+			-- We don't have to inspect ourself to get info, it's always available
+			if( parseName == playerName ) then
+				spec = (select(3, GetTalentTabInfo(1)) or 0) .. "/" ..  (select(3, GetTalentTabInfo(2)) or 0) .. "/" ..  (select(3, GetTalentTabInfo(3)) or 0)
 
-				local tree1, tree2, tree3 = Remembrance:GetTalents(name, server)
+			-- Check if Remembrance has data on them
+			elseif( IsAddOnLoaded("Remembrance") ) then
+				local tree1, tree2, tree3 = Remembrance:GetTalents(parseName, server)
 				if( tree1 and tree2 and tree3 ) then
 					spec = tree1 .. "/" .. tree2 .. "/" .. tree3
 				end
@@ -140,9 +147,9 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			
 			-- Add it into our teammate list
 			if( faction == playerIndex ) then
-				table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+				table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			else
-				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", name, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			end
 		end
 		
@@ -252,10 +259,6 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 		
 		-- Clear temp, blah blah blah
 		inspectedUnit = nil
-		for k in pairs(alreadyInspected) do
-			alreadyInspected[k] = nil
-		end
-		
 		for i=#(inspectQueue), 1, -1 do
 			table.remove(inspectQueue, i)
 		end
@@ -264,27 +267,16 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	instanceType = type
 end
 
--- INSPECTION --
+-- INSPECTION
 -- Scan party for talents
 function ArenaHistorian:RAID_ROSTER_UPDATE()
+	-- Arena started, stop inspecting
 	if( not GetPlayerBuffTexture(L["Arena Preparation"]) ) then
 		self:UnregisterEvent("RAID_ROSTER_UPDATE")
 		self:UnregisterEvent("INSPECT_TALENT_READY")
 		return
 	end
-	
-	-- Inspect the player first however
-	if( not alreadyInspected[playerName] ) then
-		alreadyInspected[playerName] = true
-		self:ScanUnit("player")
-		
-		table.insert(inspectQueue, "player")
-		if( not inspectedUnit ) then
-			inspectedUnit = "player"
-			NotifyInspect("player")
-		end
-	end
-	
+
 	-- Inspect raid
 	for i=1, GetNumRaidMembers() do
 		local unit = "raid" .. i
@@ -310,7 +302,11 @@ function ArenaHistorian:INSPECT_TALENT_READY()
 	if( inspectedUnit and UnitExists(inspectedUnit) ) then
 		-- Save their talent data
 		local name, server = UnitName(inspectedUnit)
-		Remembrance:SaveTalentInfo(name, server or GetRealmName(), (UnitClass(inspectedUnit)))	
+		if( not server or server == "" ) then
+			server = GetRealmName()
+		end
+		
+		Remembrance:SaveTalentInfo(name, server, (UnitClass(inspectedUnit)))	
 
 		-- Remove them from queue
 		for i=1, #(inspectQueue) do

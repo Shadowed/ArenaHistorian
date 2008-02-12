@@ -100,7 +100,7 @@ local function sortHistory(a, b)
 		return false
 	end
 
-	return a.time < b.time
+	return a.time > b.time
 end
 
 -- Parse the team data into a table for handy access
@@ -226,21 +226,6 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData)
 				row.specIcon:Show()
 			end
 
-			-- Class icon
-			--[[
-			if( CLASS_BUTTONS[data.classToken] ) then
-				local coords = CLASS_BUTTONS[data.classToken]
-				row.classIcon.tooltip = L[data.classToken] or L["Unknown"]
-				row.classIcon:SetNormalTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Classes")
-				row.classIcon:GetNormalTexture():SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-				row.classIcon:Show()
-			else
-				row.classIcon.tooltip = L["Unknown"]
-				row.classIcon:SetNormalTexture("Interface\\Icons\\INV_Misc_QuestionMark")
-				row.classIcon:Show()						
-			end
-			]]
-			
 			-- Race icon
 			if( RACE_ICONS[data.race] ) then
 				local coords = RACE_ICONS[data.race]
@@ -265,39 +250,45 @@ local function updateRecords()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
 	
-	FauxScrollFrame_Update(self.frame.scroll, #(history), MAX_TEAMS_SHOWN, 22)
+	FauxScrollFrame_Update(self.frame.scroll, #(history), MAX_TEAMS_SHOWN - 1, 22)
 	
 	-- Word wrap settings
 	local nameLimit = 55
 	local fsLimit = 60
 	
+	-- When we're only showing 2 or 3 players, you can't possibly overflow so change the width limits
 	if( self.frame.bracket == 2 or self.frame.bracket == 3 ) then
 		nameLimit = 70
 		fsLimit = 70
 	end
 	
 	-- Display
+	local offset = FauxScrollFrame_GetOffset(self.frame.scroll)
 	local usedRows = 0
+	local totalVisible = 0
 	for id, matchInfo in pairs(history) do
-		if( not matchInfo.hidden and id >= FauxScrollFrame_GetOffset(self.frame.scroll) and usedRows < MAX_TEAMS_SHOWN ) then
+		if( not matchInfo.hidden ) then
+			totalVisible = totalVisible + 1
+		end
+		
+		if( not matchInfo.hidden and id >= offset and usedRows < MAX_TEAMS_SHOWN ) then
 			usedRows = usedRows + 1
 			
 			local row = self.rows[usedRows]
 			row:Show()
 			
-			-- Match info
-			row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
-			
 			local zone
-			if( matchInfo.zone == L["Blade's Edge Arena"] ) then
-				zone = L["BEA"]
-			elseif( matchInfo.zone == L["Nagrand Arena"] ) then
-				zone = L["NA"]
-			elseif( matchInfo.zone == L["Ruins of Lordaeron"] ) then
-				zone = L["RoL"]
+			if( matchInfo.zone == "BEA" ) then
+				zone = L["Blade's Edge Arena"]
+			elseif( matchInfo.zone == "RoL" ) then
+				zone = L["Ruins of Lordaeron"]
+			elseif( matchInfo.zone == "NA" ) then
+				zone = L["Nagrand Arena"]
 			end
 			
-			row.zoneText:SetFormattedText(L["Zone: %s"], zone or L["Unknown"])
+			-- Match info
+			row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
+			row.zoneText:SetText(zone or L["Unknown"])
 			
 			-- Team stats
 			row.teamRecord:SetFormattedText(L["Record: %s/%s"], GREEN_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].lost .. FONT_COLOR_CODE_CLOSE)
@@ -324,6 +315,21 @@ local function updateRecords()
 		end
 	end
 	
+	local browseMax = offset + MAX_TEAMS_SHOWN
+	if( browseMax > totalVisible ) then
+		browseMax = totalVisible
+	end
+	
+
+	if( usedRows < MAX_TEAMS_SHOWN ) then
+		offset = totalVisible - (MAX_TEAMS_SHOWN - (MAX_TEAMS_SHOWN - usedRows))
+	end
+	
+	self.tabFrame.totalRecords:SetFormattedText("|cffffffff%d|r", #(history))
+	self.tabFrame.totalVisible:SetFormattedText("|cffffffff%d|r", totalVisible)
+	self.tabFrame.browsing:SetFormattedText("|cffffffff%d|r - |cffffffff%d|r", offset, browseMax)
+		
+
 	-- Hide unused
 	for i=usedRows + 1, MAX_TEAMS_SHOWN do
 		self.rows[i]:Hide()
@@ -466,34 +472,28 @@ end
 local function createTeamRows(frame, firstParent)
 	local teamRows = {}
 	for i=1, MAX_TEAM_MEMBERS do
+		-- Container frame
 		local row = CreateFrame("Frame", nil, frame)
 		row:SetWidth(70)
 		row:SetHeight(15)
 		
+		-- Race
 		row.raceIcon = CreateFrame("Button", nil, row)
 		row.raceIcon:SetHeight(ICON_SIZE)
 		row.raceIcon:SetWidth(ICON_SIZE)
 		row.raceIcon:SetScript("OnEnter", OnEnter)
 		row.raceIcon:SetScript("OnLeave", OnLeave)
 		row.raceIcon:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
-
-		--[[
-		row.classIcon = CreateFrame("Button", nil, row)
-		row.classIcon:SetHeight(ICON_SIZE)
-		row.classIcon:SetWidth(ICON_SIZE)
-		row.classIcon:SetScript("OnEnter", OnEnter)
-		row.classIcon:SetScript("OnLeave", OnLeave)
-		row.classIcon:SetPoint("TOPLEFT", row.raceIcon, "TOPRIGHT", 5, 0)
-		]]
 		
+		-- Talent spec
 		row.specIcon = CreateFrame("Button", nil, row)
 		row.specIcon:SetHeight(ICON_SIZE)
 		row.specIcon:SetWidth(ICON_SIZE)
 		row.specIcon:SetScript("OnEnter", OnEnter)
 		row.specIcon:SetScript("OnLeave", OnLeave)
-		--row.specIcon:SetPoint("TOPLEFT", row.classIcon, "TOPRIGHT", 5, 0)
 		row.specIcon:SetPoint("TOPLEFT", row.raceIcon, "TOPRIGHT", 5, 0)
 
+		-- Char name
 		row.name = CreateFrame("Button", nil, row)
 		row.name:SetPushedTextOffset(0, 0)
 		row.name:SetTextFontObject(GameFontHighlightSmall)
@@ -531,11 +531,11 @@ local function createTeamInfo(parent)
 	-- Match info
 	frame.matchInfo = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	frame.matchInfo:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
-	frame.matchInfo:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, -3)
+	frame.matchInfo:SetPoint("TOPLEFT", frame, "TOPLEFT", 320, -3)
 
 	frame.zoneText = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 	frame.zoneText:SetFont(GameFontHighlightSmall:GetFont(), FONT_SIZE)
-	frame.zoneText:SetPoint("TOPLEFT", frame, "TOPLEFT", 380, -40)
+	frame.zoneText:SetPoint("TOPLEFT", frame, "TOPLEFT", 320, -40)
 
 	-- Team stats
 	frame.teamRecord = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
@@ -586,6 +586,7 @@ function GUI:CreateFrame()
 	self.frame:Hide()
 	self.frame:SetScript("OnShow", function()
 		updateCache()
+		updateFilters()
 		updateRecords()
 	end)
 
@@ -599,7 +600,7 @@ function GUI:CreateFrame()
 	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetPoint("CENTER", UIParent, "CENTER", 75, 0)
 
-	self.frame.filters = {[L["Blade's Edge Arena"]] = true, [L["Nagrand Arena"]] = true, [L["Ruins of Lordaeron"]] = true, minRate = 0, maxRate = 3000}
+	self.frame.filters = {["BEA"] = true, ["NA"] = true, ["RoL"] = true, minRate = 0, maxRate = 3000}
 
 	table.insert(UISpecialFrames, "ArenaHistorianFrame")
 	
@@ -709,7 +710,7 @@ function GUI:CreateFrame()
 	filter:SetHeight(18)
 	filter:SetWidth(18)
 	filter:SetChecked(true)
-	filter.type = L["Blade's Edge Arena"]
+	filter.type = "BEA"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
 	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 90)
@@ -722,7 +723,7 @@ function GUI:CreateFrame()
 	filter:SetHeight(18)
 	filter:SetWidth(18)
 	filter:SetChecked(true)
-	filter.type = L["Nagrand Arena"]
+	filter.type = "NA"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
 	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 108)
@@ -735,7 +736,7 @@ function GUI:CreateFrame()
 	filter:SetHeight(18)
 	filter:SetWidth(18)
 	filter:SetChecked(true)
-	filter.type = L["Ruins of Lordaeron"]
+	filter.type = "RoL"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
 	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 128)
@@ -743,8 +744,41 @@ function GUI:CreateFrame()
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	filter.text:SetText(L["Ruins of Lordaeron"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	-- Record stat and such
+	-- Total records
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Total records"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -80)
 
-		
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -80)
+	
+	self.tabFrame.totalRecords = text
+
+	-- Total visible
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Total visible"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -95)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -95)
+
+	self.tabFrame.totalVisible = text
+	
+	-- Browsing
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Browsing"])
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -110)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -110)
+
+	self.tabFrame.browsing = text
+
 	-- Create the display buttons
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
 	tab:SetTextFontObject(GameFontHighlightSmall)
