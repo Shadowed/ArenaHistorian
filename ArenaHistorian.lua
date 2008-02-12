@@ -155,8 +155,20 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
 		]]
 		
+		-- Translate localized zone text to an unlocalized version
+		local zoneText = GetRealZoneText()
+		if( zoneText == L["Blade's Edge Arena"] ) then
+			zoneText = "BEA"
+		elseif( zoneText == L["Nagrand Arena"] ) then
+			zoneText = "NA"
+		elseif( zoneText == L["Ruins of Lordaeron"] ) then
+			zoneText = "RoL"
+		else
+			zoneText = nil
+		end
+		
 		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", GetRealZoneText(), bracket, GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText or "", bracket, GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
 		
 		-- Save
 		self.history[bracket][index] = data
@@ -217,13 +229,11 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 				
 				if( timeElapsed >= 1 ) then
 					timeElapsed = 0
-					
 					for i=1, GetNumPartyMembers() do
 						local unit = partyMap[i]
 						if( UnitExists(unit) ) then
 							ArenaHistorian:ScanUnit(unit)
 						end
-						
 					end
 				end
 			end)
@@ -268,10 +278,10 @@ function ArenaHistorian:RAID_ROSTER_UPDATE()
 		alreadyInspected[playerName] = true
 		self:ScanUnit("player")
 		
-		table.insert(inspectQueue, name)
+		table.insert(inspectQueue, "player")
 		if( not inspectedUnit ) then
 			inspectedUnit = "player"
-			NotifyInspect(unit)
+			NotifyInspect("player")
 		end
 	end
 	
@@ -300,7 +310,6 @@ function ArenaHistorian:INSPECT_TALENT_READY()
 	if( inspectedUnit and UnitExists(inspectedUnit) ) then
 		-- Save their talent data
 		local name, server = UnitName(inspectedUnit)
-		ChatFrame1:AddMessage("Got data for " .. tostring(name))
 		Remembrance:SaveTalentInfo(name, server or GetRealmName(), (UnitClass(inspectedUnit)))	
 
 		-- Remove them from queue
