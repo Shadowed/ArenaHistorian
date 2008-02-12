@@ -13,6 +13,10 @@ ArenaHistLocals = {
 	
 	["Unknown"] = "Unknown",
 	["Arena Preparation"] = "Arena Preparation",
+	["Enemy team name"] = "Enemy team name",
+	["Search"] = "Search...",
+	["Min rate"] = "Min rate",
+	["Max rate"] = "Max rate",
 
 	-- This is a simple race -> token map, we don't do vendor checks here
 	["TOKENS"] = {
@@ -29,9 +33,14 @@ ArenaHistLocals = {
 	},	
 	
 	-- Zone -> abbreviation
-	["Blade's Edge Arena"] = "BEA",
-	["Nagrand Arena"] = "NA",
-	["Ruins of Lordaeron"] = "RoL",
+	["BEA"] = "BEA",
+	["NA"] = "NA",
+	["RoL"] = "RoL",
+	
+	-- Arenas
+	["Blade's Edge Arena"] = "Blade's Edge Arena",
+	["Nagrand Arena"] = "Nagrand Arena",
+	["Ruins of Lordaeron"] = "Ruins of Lordaeron",
 	
 	-- Token -> Text
 	["HUMAN_FEMALE"] = "Female Human",
