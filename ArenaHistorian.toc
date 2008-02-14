@@ -1,6 +1,6 @@
 ## Interface: 20300
 ## Title: Arena Historian
-## Version: $Revision: 322 $
+## Version: $Revision$
 ## Author: Mayen
 ## Notes: Rated arena records
 ## SavedVariables: ArenaHistorianDB
@@ -21,3 +21,4 @@ localization.frFR.lua
 
 ArenaHistorian.lua
 gui.lua
+config.lua

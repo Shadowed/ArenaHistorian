@@ -18,6 +18,13 @@ function ArenaHistorian:OnInitialize()
 	-- Defaults
 	self.defaults = {
 		profile = {
+			enableMax = false,
+			maxRecords = 5,
+			enableWeek = false,
+			maxWeeks = 4,
+			arenaPoints = 0,
+			
+			resets = {},
 		}
 	}
 	
@@ -37,6 +44,7 @@ function ArenaHistorian:OnInitialize()
 	-- Init DB
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
 	self.history = setmetatable(ArenaHistoryData, {})
+	self.revision = tonumber(string.match("$Revision$", "(%d+)")) or 1
 	
 	playerName = UnitName("player")
 end
@@ -44,6 +52,8 @@ end
 function ArenaHistorian:OnEnable()
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
+	self:RegisterEvent("HONOR_CURRENCY_UPDATE", "CheckArenaReset")
+	self:RegisterEvent("PLAYER_LOGOUT")
 	
 	self:ZONE_CHANGED_NEW_AREA()
 end
@@ -51,6 +61,18 @@ end
 function ArenaHistorian:OnDisable()
 	self:UnregisterAllEvents()
 	instanceType = nil
+end
+
+function ArenaHistorian:Reload()
+
+end
+
+function ArenaHistorian:CheckArenaReset()
+	if( GetArenaCurrency() > self.db.profile.arenaPoints ) then
+		table.insert(self.db.profile.resets, time())
+	end
+
+	self.db.profile.arenaPoints = GetArenaCurrency()
 end
 
 -- Last ditch effort
@@ -179,7 +201,6 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		
 		-- Save
 		self.history[bracket][index] = data
-
 		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 	end
 end
@@ -212,8 +233,10 @@ end
 
 -- Are we inside an arena?
 function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
+	self:CheckArenaReset()
+
 	local type = select(2, IsInInstance())
-	
+
 	-- Inside an arena, but wasn't already
 	if( type == "arena" and type ~= instanceType and select(2, IsActiveBattlefieldArena()) ) then
 		self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
@@ -265,6 +288,52 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	end
 	
 	instanceType = type
+end
+
+-- Record maximums, we only run these on logout for performance reasons
+function ArenaHistorian:PLAYER_LOGOUT()
+	self:CheckHistory(2)
+	self:CheckHistory(3)
+	self:CheckHistory(5)
+end
+
+local function sortHistory(a, b)
+	if( not a ) then
+		return true
+	elseif( not b ) then
+		return false
+	end
+
+	return a.time > b.time
+end
+
+function ArenaHistorian:CheckHistory(bracket)
+	if( not self.db.profile.enableMax and not self.db.profile.enableWeek ) then
+		return
+	end
+
+	local history = self.history[bracket]
+	local parsedData = {}
+	for id, data in pairs(history) do
+		local time = string.split("::", id)
+		time = tonumber(time) or 0
+		
+		if( time ) then
+			table.insert(parsedData, {time = time, id = id})
+		end
+	end
+	
+	table.sort(parsedData, sortHistory)
+	
+	local cutOff = time() - ( self.db.profile.maxWeeks * 604800 )
+	
+	for id, data in pairs(parsedData) do
+		if( not self.db.profile.enableMax or ( self.db.profile.enableMax and id > self.db.profile.maxRecords ) ) then
+			if( not self.db.profile.enableWeek or ( self.db.profile.enableWeek and data.time < cutOff ) ) then
+				history[id] = nil
+			end
+		end
+	end
 end
 
 -- INSPECTION

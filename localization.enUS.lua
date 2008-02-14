@@ -86,4 +86,23 @@ ArenaHistLocals = {
 	["MAGE"] = "Mage",
 	["HUNTER"] = "Hunter",
 	["ROGUE"] = "Rogue",
+	
+	-- Config
+	["ArenaHistorian slash commands"] = "ArenaHistorian slash commands",
+	[" - history - Shows the arena history panel"] = " - history - Shows the arena history panel",
+	[" - config - Opens the OptionHouse configuration panel"] = " - config - Opens the OptionHouse configuration panel",
+	[" - clean - Forces a history check to be ran, will remove anything that doesn't match the options set in the configuration."] = " - clean - Forces a history check to be ran, will remove anything that doesn't match the options set in the configuration.",
+	
+	["General"] = "General",
+	["Enable maximum records"] = "Enable maximum records",
+
+	["Enables only storing the last X entered records."] = "Enables only storing the last X entered records.",
+	
+	["Maximum saved records"] = "Maximum saved records",
+	["How many records to save per a bracket, for example if you set it to 10 then you'll only keep the last 10 matches for each bracket, older records are overwritten by newer ones."] = "How many records to save per a bracket, for example if you set it to 10 then you'll only keep the last 10 matches for each bracket, older records are overwritten by newer ones.",
+	
+	["Enable week records"] = "Enable week records",
+	["Enables removing records that are over X weeks old."] = "Enables removing records that are over X weeks old.",
+	["How many weeks to save records"] = "How many weeks to save records",
+	["Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s"] = "Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s",
 }

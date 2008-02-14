@@ -35,17 +35,6 @@ local TREE_ICONS = {
 	["PRIEST"] = {"Spell_Holy_WordFortitude", "Spell_Holy_HolyBolt", "Spell_Shadow_ShadowWordPain"},
 }
 
-function GUI:OnInitialize()
-	SLASH_ARENAHISTORIAN1 = "/arenahistory"
-	SLASH_ARENAHISTORIAN2 = "/arenahistorian"
-	SLASH_ARENAHISTORIAN3 = "/arenahist"
-	SLASH_ARENAHISTORIAN4 = "/ah"
-	SlashCmdList["ARENAHISTORIAN"] = function()
-		self:CreateFrame()
-		self.frame:Show()
-	end
-end
-
 function GUI:GetSpecName(class, spec)
 	local tree1, tree2, tree3 = string.split("/", spec)
 	tree1 = tonumber(tree1) or 0
@@ -262,7 +251,16 @@ local function updateRecords()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
 	
-	FauxScrollFrame_Update(self.frame.scroll, #(history), MAX_TEAMS_SHOWN - 1, 22)
+
+	-- Check how many rows are supposed to be used
+	local totalVisible = 0
+	for _, matchInfo in pairs(history) do
+		if( not matchInfo.hidden ) then
+			totalVisible = totalVisible + 1
+		end
+	end
+	
+	FauxScrollFrame_Update(self.frame.scroll, totalVisible, MAX_TEAMS_SHOWN, 75)
 	
 	-- Word wrap settings
 	local nameLimit = 55
@@ -277,54 +275,54 @@ local function updateRecords()
 	-- Display
 	local offset = FauxScrollFrame_GetOffset(self.frame.scroll)
 	local usedRows = 0
-	local totalVisible = 0
+	local totalRows = 0
 	for id, matchInfo in pairs(history) do
 		if( not matchInfo.hidden ) then
-			totalVisible = totalVisible + 1
-		end
-		
-		if( not matchInfo.hidden and id >= offset and usedRows < MAX_TEAMS_SHOWN ) then
-			usedRows = usedRows + 1
+			totalRows = totalRows + 1
 			
-			local row = self.rows[usedRows]
-			row:Show()
-			
-			local zone
-			if( matchInfo.zone == "BEA" ) then
-				zone = L["Blade's Edge Arena"]
-			elseif( matchInfo.zone == "RoL" ) then
-				zone = L["Ruins of Lordaeron"]
-			elseif( matchInfo.zone == "NA" ) then
-				zone = L["Nagrand Arena"]
-			end
-			
-			-- Match info
-			row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
-			row.zoneText:SetText(zone or L["Unknown"])
-			
-			-- Team stats
-			row.teamRecord:SetFormattedText(L["Record: %s/%s"], GREEN_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].lost .. FONT_COLOR_CODE_CLOSE)
-			
-			-- Enemy team display
-			row.enemyTeam:SetText(matchInfo.eTeamName)
-			row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
-			
-			setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam)
+			if( totalRows > offset and usedRows < MAX_TEAMS_SHOWN ) then
+				usedRows = usedRows + 1
 
-			-- Player team display
-			row.playerTeam:SetText(matchInfo.pTeamName)
-			row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
-			
-			setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam)
-			
-			-- Green border if we won, red if we lost
-			if( matchInfo.won ) then
-				row:SetBackdropBorderColor(0.0, 1.0, 0.0, 1.0)
-			else
-				row:SetBackdropBorderColor(1.0, 0.0, 0.0, 1.0)
-			end
+				local row = self.rows[usedRows]
+				row:Show()
 
+				local zone
+				if( matchInfo.zone == "BEA" ) then
+					zone = L["Blade's Edge Arena"]
+				elseif( matchInfo.zone == "RoL" ) then
+					zone = L["Ruins of Lordaeron"]
+				elseif( matchInfo.zone == "NA" ) then
+					zone = L["Nagrand Arena"]
+				end
+
+				-- Match info
+				row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
+				row.zoneText:SetText(zone or L["Unknown"])
+
+				-- Team stats
+				row.teamRecord:SetFormattedText(L["Record: %s/%s"], GREEN_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. arenaStats[matchInfo.teamID].lost .. FONT_COLOR_CODE_CLOSE)
+
+				-- Enemy team display
+				row.enemyTeam:SetText(matchInfo.eTeamName)
+				row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
+
+				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam)
+
+				-- Player team display
+				row.playerTeam:SetText(matchInfo.pTeamName)
+				row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
+
+				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam)
+
+				-- Green border if we won, red if we lost
+				if( matchInfo.won ) then
+					row:SetBackdropBorderColor(0.0, 1.0, 0.0, 1.0)
+				else
+					row:SetBackdropBorderColor(1.0, 0.0, 0.0, 1.0)
+				end
+			end
 		end
+
 	end
 	
 	-- Set record numbers
@@ -349,7 +347,7 @@ local function updateRecords()
 	
 
 	for key, data in pairs(arenaMap[self.frame.bracket]) do
-		self.tabFrame[key]:SetFormattedText("%.2f%% (%s) - %s:%s", data.played / #(history) * 100, data.played, GREEN_FONT_COLOR_CODE .. data.won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. data.lost .. FONT_COLOR_CODE_CLOSE)
+		self.tabFrame[key]:SetFormattedText("%.1f%% - %s:%s (%.1f%%)", data.played / #(history) * 100, GREEN_FONT_COLOR_CODE .. data.won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. data.lost .. FONT_COLOR_CODE_CLOSE, data.won / ( data.won + data.lost ) * 100)
 
 	end
 
@@ -631,7 +629,7 @@ function GUI:CreateFrame()
 	self.frame.scroll = CreateFrame("ScrollFrame", "ArenaHistorianFrameScroll", self.frame, "FauxScrollFrameTemplate")
 	self.frame.scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 26, -24)
 	self.frame.scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -26, 4)
-	self.frame.scroll:SetScript("OnVerticalScroll", function() FauxScrollFrame_OnVerticalScroll(22, updateRecords) end)
+	self.frame.scroll:SetScript("OnVerticalScroll", function() FauxScrollFrame_OnVerticalScroll(75, updateRecords) end)
 
 	-- Close button
 	local button = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
@@ -646,6 +644,39 @@ function GUI:CreateFrame()
 	self.frameTitle:SetPoint("CENTER", self.frame, "TOP", 0, -12)
 	self.frameTitle:SetText(L["Arena Historian"])
 	
+	self.frameMover = CreateFrame("Button", nil, self.frame)
+	self.frameMover:SetPoint("TOPLEFT", self.frameTitle, "TOPLEFT", -2, 0)
+	self.frameMover:SetWidth(150)
+	self.frameMover:SetHeight(20)
+	self.frameMover:SetScript("OnMouseUp", function(self)
+		if( self.isMoving ) then
+			local parent = self:GetParent()
+			local scale = parent:GetEffectiveScale()
+
+			self.isMoving = nil
+			parent:StopMovingOrSizing()
+
+			ArenaHistorian.db.profile.position = {x = parent:GetLeft() * scale, y = parent:GetTop() * scale}
+		end
+	end)
+
+	self.frameMover:SetScript("OnMouseDown", function(self, mouse)
+		local parent = self:GetParent()
+
+		-- Start moving!
+		if( parent:IsMovable() and mouse == "LeftButton" ) then
+			self.isMoving = true
+			parent:StartMoving()
+
+		-- Reset position
+		elseif( mouse == "RightButton" ) then
+			parent:ClearAllPoints()
+			parent:SetPoint("CENTER", UIParent, "CENTER", 75, 0)
+
+			ArenaHistorian.db.profile.position = nil
+		end
+	end)
+	
 	-- Create the tab frame
 	self.tabFrame = CreateFrame("Frame", nil, self.frame)
 	self.tabFrame:SetHeight(440)
@@ -654,7 +685,72 @@ function GUI:CreateFrame()
 	self.tabFrame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
 	self.tabFrame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.tabFrame:SetPoint("TOPRIGHT", self.frame, "TOPLEFT", -8, 0)
+		
+	-- Record stat and such
+	-- Total records
+	local totalRecordsText = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	totalRecordsText:SetText(L["Total records"])
+	totalRecordsText:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -80)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", totalRecordsText, "TOPRIGHT", 12, 0)
 	
+	self.tabFrame.totalRecords = text
+
+	-- Total visible
+	local totalVisibleText = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	totalVisibleText:SetText(L["Total visible"])
+	totalVisibleText:SetPoint("TOPLEFT", totalRecordsText, "TOPLEFT", 0, -14)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", self.tabFrame.totalRecords, "TOPLEFT", 0, -14)
+
+	self.tabFrame.totalVisible = text
+	
+	-- Browsing
+	local browsingText = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	browsingText:SetText(L["Browsing"])
+	browsingText:SetPoint("TOPLEFT", totalVisibleText, "TOPLEFT", 0, -14)
+
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(0)
+	text:SetPoint("TOPLEFT", self.tabFrame.totalVisible, "TOPLEFT", 0, -14)
+
+	self.tabFrame.browsing = text
+	
+	-- MAP STATS
+	-- Blade's Edge Arena
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Blade's Edge Arena"])
+	text:SetPoint("TOPLEFT", browsingText, "TOPLEFT", 0, -30)
+
+	local BEA = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	BEA:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	
+	self.tabFrame.BEA = BEA
+
+	-- Nagrand Arena
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Nagrand Arena"])
+	text:SetPoint("TOPLEFT", BEA, "TOPLEFT", 0, -16)
+
+	local NA = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	NA:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	
+	self.tabFrame.NA = NA
+
+	-- Ruins of Lordaeron
+	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	text:SetText(L["Ruins of Lordaeron"])
+	text:SetPoint("TOPLEFT", NA, "TOPLEFT", 0, -16)
+
+	local RoL = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	RoL:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	
+	self.tabFrame.RoL = RoL
+
 	-- Now create our filters for the tab frame
 	-- TEAM NAME SEARCH
 	local search = CreateFrame("EditBox", "AHTeamNameSearch", self.tabFrame, "InputBoxTemplate")
@@ -663,7 +759,6 @@ function GUI:CreateFrame()
 	search:SetAutoFocus(false)
 	search:ClearAllPoints()
 	search:SetPoint("CENTER", self.tabFrame, "BOTTOM", 2, 11)
-	
 
 	search.searchText = true
 	search.defaultText = L["Search"]
@@ -736,11 +831,13 @@ function GUI:CreateFrame()
 	filter.type = "BEA"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 90)
+	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 120)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	filter.text:SetText(L["Blade's Edge Arena"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.BEAFilter = filter
 
 	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
 	filter:SetHeight(18)
@@ -749,11 +846,13 @@ function GUI:CreateFrame()
 	filter.type = "NA"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 108)
+	filter:SetPoint("TOPLEFT", self.tabFrame.BEAFilter, "TOPLEFT", 0, -15)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	filter.text:SetText(L["Nagrand Arena"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.NAFilter = filter
 
 	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
 	filter:SetHeight(18)
@@ -762,76 +861,13 @@ function GUI:CreateFrame()
 	filter.type = "RoL"
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 128)
+	filter:SetPoint("TOPLEFT", self.tabFrame.NAFilter, "TOPLEFT", 0, -15)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	filter.text:SetText(L["Ruins of Lordaeron"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
 	
-	-- Record stat and such
-	-- Total records
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Total records"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -80)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(0)
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -80)
-	
-	self.tabFrame.totalRecords = text
-
-	-- Total visible
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Total visible"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -95)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(0)
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -95)
-
-	self.tabFrame.totalVisible = text
-	
-	-- Browsing
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Browsing"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -110)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(0)
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 80, -110)
-
-	self.tabFrame.browsing = text
-	
-	-- MAP STATS
-	-- Blade's Edge Arena
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Blade's Edge Arena"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -190)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -202)
-	
-	self.tabFrame.BEA = text
-
-	-- Nagrand Arena
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Nagrand Arena"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -220)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -232)
-	
-	self.tabFrame.NA = text
-
-	-- Ruins of Lordaeron
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Ruins of Lordaeron"])
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -250)
-
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	text:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 3, -262)
-	
-	self.tabFrame.RoL = text
+	self.tabFrame.RoLFilter = filter
 
 	-- Create the display buttons
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
@@ -874,5 +910,13 @@ function GUI:CreateFrame()
 		else
 			self.rows[i]:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -25)
 		end
+	end
+	
+	-- Set position
+	if( ArenaHistorian.db.profile.position ) then
+		local scale = self.frame:GetEffectiveScale()
+
+		self.frame:ClearAllPoints()
+		self.frame:SetPoint("TOPLEFT", nil, "BOTTOMLEFT", ArenaHistorian.db.profile.position.x / scale, ArenaHistorian.db.profile.position.y / scale)
 	end
 end
