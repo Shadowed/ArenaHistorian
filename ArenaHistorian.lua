@@ -43,7 +43,6 @@ function ArenaHistorian:OnInitialize()
 
 	-- Init DB
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
-	self.history = setmetatable(ArenaHistoryData, {})
 	self.revision = tonumber(string.match("$Revision$", "(%d+)")) or 1
 	
 	playerName = UnitName("player")
@@ -185,7 +184,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		]]
 		
 		-- Translate localized zone text to an unlocalized version
-		local zoneText = GetRealZoneText()
+		local zoneText = GetRealZoneText() or ""
 		if( zoneText == L["Blade's Edge Arena"] ) then
 			zoneText = "BEA"
 		elseif( zoneText == L["Nagrand Arena"] ) then
@@ -196,11 +195,15 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			zoneText = nil
 		end
 		
+		local runTime = GetBattlefieldInstanceRunTime() or 0
 		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText or "", bracket, GetBattlefieldInstanceRunTime() or 0, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		--local playerString = table.concat(":", playerData)
+		--local enemyString = table.concat(":", enemyData)
+		--local data = zoneText .. ":" .. bracket .. ":" .. (GetBattlefieldInstanceRunTime() or 0) .. ":" .. tostring(playerWon) .. ":" .. playerRating .. ":" .. playerChange .. ":" .. enemyRating .. ":" .. enemyChange .. ";" .. playerString .. ";" .. enemyString
 		
 		-- Save
-		self.history[bracket][index] = data
+		ArenaHistoryData[bracket][index] = data
 		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 	end
 end
@@ -312,7 +315,7 @@ function ArenaHistorian:CheckHistory(bracket)
 		return
 	end
 
-	local history = self.history[bracket]
+	local history = ArenaHistoryData[bracket]
 	local parsedData = {}
 	for id, data in pairs(history) do
 		local time = string.split("::", id)

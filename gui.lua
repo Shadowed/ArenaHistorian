@@ -130,7 +130,7 @@ local function updateCache()
 	local stats = arenaStats
 	
 	-- Convert it from our compact format, to the tably one
-	for id, data in pairs(ArenaHistorian.history[self.frame.bracket]) do
+	for id, data in pairs(ArenaHistoryData[self.frame.bracket]) do
 		local bracket = select(2, string.split(":", data))
 		-- Basically, this makes sure we only parse everything once
 		if( not alreadyParsed[bracket .. id] ) then
