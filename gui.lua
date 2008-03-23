@@ -5,6 +5,7 @@ local arenaData = {[2] = {}, [3] = {}, [5] = {}}
 local arenaStats = {[2] = {}, [3] = {}, [5] = {}}
 local arenaMap = {[2] = {}, [3] = {}, [5] = {}}
 local alreadyParsed = {}
+local talentPopup, racePopup
 
 local MAX_TEAMS_SHOWN = 5
 local MAX_TEAM_MEMBERS = 5
@@ -12,14 +13,14 @@ local DEEP_THRESHOLD = 30
 local FONT_SIZE = 10
 local ICON_SIZE = 16
 
+
 -- Stolen out of GlueXML
 local RACE_ICONS = {
 	["HUMAN_MALE"] = {0, 0.125, 0, 0.25}, ["DWARF_MALE"] = {0.125, 0.25, 0, 0.25}, ["GNOME_MALE"] = {0.25, 0.375, 0, 0.25}, ["NIGHTELF_MALE"] = {0.375, 0.5, 0, 0.25},
 	["TAUREN_MALE"] = {0, 0.125, 0.25, 0.5}, ["SCOURGE_MALE"] = {0.125, 0.25, 0.25, 0.5}, ["TROLL_MALE"] = {0.25, 0.375, 0.25, 0.5}, ["ORC_MALE"] = {0.375, 0.5, 0.25, 0.5},
-	["HUMAN_FEMALE"] = {0, 0.125, 0.5, 0.75}, ["DWARF_FEMALE"] = {0.125, 0.25, 0.5, 0.75}, ["GNOME_FEMALE"] = {0.25, 0.375, 0.5, 0.75},
-	["NIGHTELF_FEMALE"] = {0.375, 0.5, 0.5, 0.75}, ["TAUREN_FEMALE"] = {0, 0.125, 0.75, 1.0}, ["SCOURGE_FEMALE"] = {0.125, 0.25, 0.75, 1.0}, 
-	["TROLL_FEMALE"] = {0.25, 0.375, 0.75, 1.0}, ["ORC_FEMALE"] = {0.375, 0.5, 0.75, 1.0}, ["BLOODELF_MALE"] = {0.5, 0.625, 0.25, 0.5},
-	["BLOODELF_FEMALE"] = {0.5, 0.625, 0.75, 1.0},  ["DRAENEI_MALE"] = {0.5, 0.625, 0, 0.25}, ["DRAENEI_FEMALE"] = {0.5, 0.625, 0.5, 0.75}, 
+	["HUMAN_FEMALE"] = {0, 0.125, 0.5, 0.75}, ["DWARF_FEMALE"] = {0.125, 0.25, 0.5, 0.75}, ["GNOME_FEMALE"] = {0.25, 0.375, 0.5, 0.75}, ["NIGHTELF_FEMALE"] = {0.375, 0.5, 0.5, 0.75},
+	["TAUREN_FEMALE"] = {0, 0.125, 0.75, 1.0}, ["SCOURGE_FEMALE"] = {0.125, 0.25, 0.75, 1.0}, ["TROLL_FEMALE"] = {0.25, 0.375, 0.75, 1.0}, ["ORC_FEMALE"] = {0.375, 0.5, 0.75, 1.0},
+	["BLOODELF_MALE"] = {0.5, 0.625, 0.25, 0.5}, ["BLOODELF_FEMALE"] = {0.5, 0.625, 0.75, 1.0},  ["DRAENEI_MALE"] = {0.5, 0.625, 0, 0.25}, ["DRAENEI_FEMALE"] = {0.5, 0.625, 0.5, 0.75}, 
 }
 
 -- Tree data
@@ -73,6 +74,297 @@ function GUI:GetSpecName(class, spec)
 	return "INV_Misc_QuestionMark", L["Unknown"]
 end
 
+local talentPopup
+local racePopup
+
+-- Popup request window for talents
+local function setTalentData(self)
+	local parent = self:GetParent()
+	local talents = string.format("%d/%d/%d", tonumber(parent.pointOne:GetNumber()) or 0, tonumber(parent.pointTwo:GetNumber()) or 0, tonumber(parent.pointThree:GetNumber()) or 0)
+	
+	if( ArenaHistoryCustomData[parent.id] ) then
+		local _, race = string.split(":", ArenaHistoryCustomData[parent.id])
+		ArenaHistoryCustomData[parent.id] = string.format("%s:%s", talents, race)
+	else
+		ArenaHistoryCustomData[parent.id] = string.format("%s:", talents)
+	end
+	
+	talentPopup:Hide()
+
+	-- Update the spec icon
+	local parentIcon = parent.currentFrame
+	if( not parentIcon ) then
+		return
+	end
+	
+	local icon, tooltip = GUI:GetSpecName(parentIcon.classToken, talents)
+	parentIcon.tooltip = tooltip
+	parentIcon.bracket = GUI.frame.bracket
+	parentIcon.teamName = parentIcon.teamName
+	parentIcon.name = parentIcon.name
+	parentIcon:SetNormalTexture("Interface\\Icons\\" .. icon)
+	parentIcon:Show()
+end
+
+local function popupTalentRequest(frame, bracket, teamName, name)
+	local popup = talentPopup
+	if( not popup ) then
+		popup = CreateFrame("Frame", nil, GUI.frame)
+
+		popup:SetBackdrop(GameTooltip:GetBackdrop())
+		popup:SetBackdropBorderColor(TOOLTIP_DEFAULT_COLOR.r, TOOLTIP_DEFAULT_COLOR.g, TOOLTIP_DEFAULT_COLOR.b);
+		popup:SetBackdropColor(TOOLTIP_DEFAULT_BACKGROUND_COLOR.r, TOOLTIP_DEFAULT_BACKGROUND_COLOR.g, TOOLTIP_DEFAULT_BACKGROUND_COLOR.b);
+		popup:SetScale(1.0)
+		popup:SetWidth(125)
+		popup:SetHeight(35)
+		popup:SetClampedToScreen(true)
+		popup:SetToplevel(true)
+		popup:SetFrameStrata("DIALOG")
+		popup:SetScript("OnHide", function(self) self.currentFrame = nil end)
+		popup:Hide()
+		
+		popup.pointOne = CreateFrame("EditBox", "AHHistoryPopupOne", popup, "InputBoxTemplate")
+		popup.pointOne:SetHeight(20)
+		popup.pointOne:SetWidth(20)
+		popup.pointOne:SetNumeric(true)
+		popup.pointOne:SetAutoFocus(false)
+		popup.pointOne:SetScript("OnEnterPressed", setTalentData)
+		popup.pointOne:SetScript("OnTabPressed", function() popup.pointTwo:SetFocus(); end)
+		popup.pointOne:ClearAllPoints()
+		popup.pointOne:SetPoint("TOPLEFT", popup, "TOPLEFT", 10, -8)
+
+		popup.pointTwo = CreateFrame("EditBox", "AHHistoryPopupTwo", popup, "InputBoxTemplate")
+		popup.pointTwo:SetHeight(20)
+		popup.pointTwo:SetWidth(20)
+		popup.pointTwo:SetNumeric(true)
+		popup.pointTwo:SetAutoFocus(false)
+		popup.pointTwo:SetScript("OnEnterPressed", setTalentData)
+		popup.pointTwo:SetScript("OnTabPressed", function() popup.pointThree:SetFocus(); end)
+		popup.pointTwo:ClearAllPoints()
+		popup.pointTwo:SetPoint("TOPLEFT", popup.pointOne, "TOPRIGHT", 6, 0)
+
+		popup.pointThree = CreateFrame("EditBox", "AHHistoryPopupThree", popup, "InputBoxTemplate")
+		popup.pointThree:SetHeight(20)
+		popup.pointThree:SetWidth(20)
+		popup.pointThree:SetNumeric(true)
+		popup.pointThree:SetAutoFocus(false)
+		popup.pointThree:SetScript("OnEnterPressed", setTalentData)
+		popup.pointThree:SetScript("OnTabPressed", function() popup.pointOne:SetFocus(); end)
+		popup.pointThree:ClearAllPoints()
+		popup.pointThree:SetPoint("TOPLEFT", popup.pointTwo, "TOPRIGHT", 6, 0)
+		
+		popup.confirmSave = CreateFrame("Button", nil, popup, "UIPanelButtonGrayTemplate")
+		popup.confirmSave:SetText(L["OK"])
+		popup.confirmSave:SetHeight(20)
+		popup.confirmSave:SetWidth(25)
+		popup.confirmSave:SetScript("OnClick", setTalentData)
+		popup.confirmSave:SetPoint("TOPLEFT", popup.pointThree, "TOPRIGHT", 6, 0)
+		
+		talentPopup = popup
+	end
+	
+	-- Hide it if it's visible still
+	if( popup.currentFrame == frame ) then
+		popup:Hide()
+		
+		-- Reshow the old tooltip
+		GameTooltip:SetOwner(frame, "ANCHOR_TOPLEFT")
+		GameTooltip:SetText(frame.tooltip)
+		GameTooltip:Show()
+		return
+
+	-- We switched icons, so retoggle
+	elseif( popup:IsVisible() and popup.currentFrame ~= frame ) then
+		popup:Hide()
+	end
+	
+	-- Hide the race frame if it's viewable
+	if( racePopup and racePopup:IsVisible() ) then
+		racePopup:Hide()
+	end
+	
+	-- Setup!
+	popup.id = bracket .. teamName .. name
+	popup.teamName = teamName
+	popup.name = name
+	popup.bracket = bracket
+	popup.currentFrame = frame
+	popup:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, 0)
+	popup:Show()
+	popup.pointOne:SetFocus()
+	
+	GameTooltip:Hide()
+
+	-- Annnd set other things
+	local one, two, three, talent
+	if( ArenaHistoryCustomData[popup.id] ) then
+		talent = string.split(":", ArenaHistoryCustomData[popup.id])
+	else
+		talent = frame.spec
+	end
+
+	if( talent ~= "" ) then
+		one, two, three = string.split("/", talent)
+	end
+
+	popup.pointOne:SetNumber(one or 0)
+	popup.pointTwo:SetNumber(two or 0)
+	popup.pointThree:SetNumber(three or 0)
+end
+
+-- Popup request window for race/sex
+local function dropdownSelected()
+	if( this.arg1 == "sex" ) then
+		UIDropDownMenu_SetSelectedValue(AHCustomSexDropdown, this.value)
+	elseif( this.arg1 == "race" ) then
+		UIDropDownMenu_SetSelectedValue(AHCustomRaceDropdown, this.value)
+	end
+	
+	-- Compile the token
+	local sex = UIDropDownMenu_GetSelectedValue(AHCustomSexDropdown)
+	local race = UIDropDownMenu_GetSelectedValue(AHCustomRaceDropdown)
+	local raceToken = string.format("%s_%s", race, sex)
+	
+	-- Now save
+	local parent = racePopup
+	local race = ""
+	
+	if( ArenaHistoryCustomData[parent.id] ) then
+		local talents, _ = string.split(":", ArenaHistoryCustomData[parent.id])
+		ArenaHistoryCustomData[parent.id] = string.format("%s:%s", talents, raceToken)
+	else
+		ArenaHistoryCustomData[parent.id] = string.format(":%s", race)
+	end
+
+	-- Update the spec icon
+	local parentIcon = parent.currentFrame
+	if( not parentIcon ) then
+		return
+	end
+	
+	local coords = RACE_ICONS[raceToken]
+	parentIcon.tooltip = L[raceToken] or L["Unknown"]
+	parentIcon:SetNormalTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Races")
+	parentIcon:GetNormalTexture():SetTexCoord(coords[1], coords[2], coords[3], coords[4])
+	parentIcon:Show()
+end
+
+local function initSexDropdown()
+	UIDropDownMenu_AddButton({value = "MALE", text = L["Male"], arg1 = "sex", func = dropdownSelected})
+	UIDropDownMenu_AddButton({value = "FEMALE", text = L["Female"], arg1 = "sex", func = dropdownSelected})
+end
+
+local function initRaceDropdown()
+	for token, text in pairs(L["TOKENS"]) do
+		local race = string.split("_", token)
+		UIDropDownMenu_AddButton({value = race, text = text, arg1 = "race", func = dropdownSelected})
+	end
+end
+
+local function popupRaceRequest(frame, bracket, teamName, name)
+	local popup = racePopup
+	if( not popup ) then
+		popup = CreateFrame("Frame", nil, GUI.frame)
+		popup:SetBackdrop(GameTooltip:GetBackdrop())
+		popup:SetBackdropBorderColor(TOOLTIP_DEFAULT_COLOR.r, TOOLTIP_DEFAULT_COLOR.g, TOOLTIP_DEFAULT_COLOR.b);
+		popup:SetBackdropColor(TOOLTIP_DEFAULT_BACKGROUND_COLOR.r, TOOLTIP_DEFAULT_BACKGROUND_COLOR.g, TOOLTIP_DEFAULT_BACKGROUND_COLOR.b);
+		popup:SetScale(1.0)
+		popup:SetWidth(260)
+		popup:SetHeight(35)
+		popup:SetClampedToScreen(true)
+		popup:SetToplevel(true)
+		popup:SetFrameStrata("DIALOG")
+		popup:SetScript("OnHide", function(self) self.currentFrame = nil end)
+		popup:Hide()
+
+		popup.sex = CreateFrame("Frame", "AHCustomSexDropdown", popup, "UIDropDownMenuTemplate")
+		popup.sex:SetPoint("TOPLEFT", popup, "TOPLEFT", -10, -4)
+		popup.sex:SetScript("OnShow", function(self)
+			UIDropDownMenu_Initialize(AHCustomSexDropdown, initSexDropdown)
+			UIDropDownMenu_SetWidth(70, AHCustomSexDropdown)
+			UIDropDownMenu_SetSelectedValue(AHCustomSexDropdown, self.sex)
+		end)
+		
+		popup.race = CreateFrame("Frame", "AHCustomRaceDropdown", popup, "UIDropDownMenuTemplate")
+		popup.race:SetPoint("TOPLEFT", popup, "TOPLEFT", 85, -4)
+		popup.race:SetScript("OnShow", function(self)
+			UIDropDownMenu_Initialize(AHCustomRaceDropdown, initRaceDropdown)
+			UIDropDownMenu_SetWidth(100, AHCustomRaceDropdown)
+			UIDropDownMenu_SetSelectedValue(AHCustomRaceDropdown, self.race)
+		end)
+		
+		popup.confirmSave = CreateFrame("Button", nil, popup, "UIPanelButtonGrayTemplate")
+		popup.confirmSave:SetText(L["OK"])
+		popup.confirmSave:SetHeight(20)
+		popup.confirmSave:SetWidth(25)
+		popup.confirmSave:SetScript("OnClick", function() racePopup:Hide() end)
+		popup.confirmSave:SetPoint("TOPRIGHT", popup, "TOPRIGHT", -10, -8)
+
+		racePopup = popup
+	end
+	
+	-- Hide it if it's visible still
+	if( popup.currentFrame == frame ) then
+		popup:Hide()
+		
+		-- Reshow the old tooltip
+		GameTooltip:SetOwner(frame, "ANCHOR_TOPLEFT")
+		GameTooltip:SetText(frame.tooltip)
+		GameTooltip:Show()
+		return
+	
+
+	-- We switched from one icon to another, so retoggle
+	elseif( popup:IsVisible() and popup.currentFrame ~= frame ) then
+		popup:Hide()
+	end
+
+	-- Hide the talent frame if it's viewable
+	if( talentPopup and talentPopup:IsVisible() ) then
+		talentPopup:Hide()
+	end
+
+	popup.id = bracket .. teamName .. name
+
+	-- Annnd set other things
+	local sex = "FEMALE"
+	local race = "BLOODELF"
+	if( ArenaHistoryCustomData[popup.id] ) then
+		local _, raceToken = string.split(":", ArenaHistoryCustomData[popup.id])
+		if( not raceToken or raceToken == "" ) then
+			raceToken = frame.race
+		end
+	else
+		raceToken = frame.race
+	end
+
+	if( raceToken and raceToken ~= "" ) then
+		race, sex = string.split("_", raceToken)
+	end
+	
+	-- Setup!
+	popup.id = bracket .. teamName .. name
+	popup.teamName = teamName
+	popup.name = name
+	popup.bracket = bracket
+	popup.currentFrame = frame
+	popup.sex.sex = sex
+	popup.race.race = race
+	popup:SetPoint("BOTTOMLEFT", frame, "TOPLEFT", 0, 0)
+	popup:Show()
+	
+	GameTooltip:Hide()
+end
+
+local function OnClick(self)
+	if( self.type == "talent" ) then
+		popupTalentRequest(self, self.bracket, self.teamName, self.name)
+	elseif( self.type == "race" ) then
+		popupRaceRequest(self, self.bracket, self.teamName, self.name)
+	end
+end
+
+-- Parse the team data into a table for handy access
 local function sortTeamInfo(a, b)
 	if( not a ) then
 		return true
@@ -93,7 +385,6 @@ local function sortHistory(a, b)
 	return a.time > b.time
 end
 
--- Parse the team data into a table for handy access
 local function parseTeamData(...)
 	local teamData = {}
 	for i=1, select("#", ...) do
@@ -123,6 +414,7 @@ local function parseTeamData(...)
 	return teamData, teamID
 end
 
+-- Updates our data cache
 local function updateCache()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
@@ -177,6 +469,7 @@ local function updateCache()
 					runTime = tonumber(runTime) or 0,
 					won = (playerWon == "true"),
 					teamID = teamID,
+					recordID = id,
 					
 					pTeamName = playerTeamName,
 					pRating = tonumber(pRating) or 0,
@@ -198,7 +491,7 @@ local function updateCache()
 	table.sort(history, sortHistory)
 end
 
-local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData)
+local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName)
 	for i=1, MAX_TEAM_MEMBERS do
 		local row = teamRows[i]
 		local data = teamData[i]
@@ -213,12 +506,30 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData)
 			row.name.fs:SetHeight(15)
 			row.name.fs:SetWidth(fsLimit)
 			row.name.fs:SetJustifyH("LEFT")
-
+			
+			-- Check if we should override our saved data with custom data
+			local id = GUI.frame.bracket .. teamName .. data.name
+			if( ArenaHistoryCustomData[id] ) then
+				local talents, race = string.split(":", ArenaHistoryCustomData[id])
+				
+				if( talents ~= "" ) then
+					data.spec = talents
+				end
+				
+				if( race ~= "" ) then
+					data.race = race
+				end
+			end
+						
 			-- Spec icon
 			if( data.spec and data.spec ~= "" ) then
 				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec)
-
 				row.specIcon.tooltip = tooltip
+				row.specIcon.bracket = GUI.frame.bracket
+				row.specIcon.teamName = teamName
+				row.specIcon.name = data.name
+				row.specIcon.classToken = data.classToken
+				row.specIcon.spec = data.spec
 				row.specIcon:SetNormalTexture("Interface\\Icons\\" .. icon)
 				row.specIcon:Show()
 			else
@@ -231,6 +542,10 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData)
 			if( RACE_ICONS[data.race] ) then
 				local coords = RACE_ICONS[data.race]
 				row.raceIcon.tooltip = L[data.race] or L["Unknown"]
+				row.raceIcon.bracket = GUI.frame.bracket
+				row.raceIcon.teamName = teamName
+				row.raceIcon.name = data.name
+				row.raceIcon.race = data.race
 				row.raceIcon:SetNormalTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Races")
 				row.raceIcon:GetNormalTexture():SetTexCoord(coords[1], coords[2], coords[3], coords[4])
 				row.raceIcon:Show()
@@ -239,7 +554,7 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData)
 				row.raceIcon:SetNormalTexture("Interface\\Icons\\INV_Misc_QuestionMark")
 				row.raceIcon:Show()
 			end
-
+			
 			row:Show()
 		else
 			row:Hide()
@@ -251,7 +566,6 @@ local function updateRecords()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
 	
-
 	-- Check how many rows are supposed to be used
 	local totalVisible = 0
 	for _, matchInfo in pairs(history) do
@@ -295,6 +609,9 @@ local function updateRecords()
 					zone = L["Nagrand Arena"]
 				end
 
+				-- Delete ID
+				row.deleteButton.id = matchInfo.recordID				
+
 				-- Match info
 				row.matchInfo:SetFormattedText(L["Run Time: %s"], SecondsToTime(matchInfo.runTime / 1000))
 				row.zoneText:SetText(zone or L["Unknown"])
@@ -306,13 +623,13 @@ local function updateRecords()
 				row.enemyTeam:SetText(matchInfo.eTeamName)
 				row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
 
-				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam)
+				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam, matchInfo.eTeamName, matchInfo.teamID)
 
 				-- Player team display
 				row.playerTeam:SetText(matchInfo.pTeamName)
 				row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
 
-				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam)
+				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.teamID)
 
 				-- Green border if we won, red if we lost
 				if( matchInfo.won ) then
@@ -469,6 +786,23 @@ local function setShownBracket(self)
 	end
 end
 
+-- Delete something
+local function deleteRecord(self)
+	if( IsAltKeyDown() ) then
+		ArenaHistoryData[GUI.frame.bracket][self.id] = nil
+
+		-- Check and remove the history record
+		for i=#(arenaData[GUI.frame.bracket]), 1, -1 do
+			local row = arenaData[GUI.frame.bracket][i]
+			if( row.recordID == self.id ) then
+				table.remove(arenaData[GUI.frame.bracket], i)
+			end
+		end
+
+		-- Update
+		updateRecords()
+	end
+end
 
 -- Create the team info display
 local infoBackdrop = {	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -504,7 +838,9 @@ local function createTeamRows(frame, firstParent)
 		row.raceIcon:SetWidth(ICON_SIZE)
 		row.raceIcon:SetScript("OnEnter", OnEnter)
 		row.raceIcon:SetScript("OnLeave", OnLeave)
+		row.raceIcon:SetScript("OnDoubleClick", OnClick)
 		row.raceIcon:SetPoint("TOPLEFT", row, "TOPLEFT", 0, 0)
+		row.raceIcon.type = "race"
 		
 		-- Talent spec
 		row.specIcon = CreateFrame("Button", nil, row)
@@ -512,7 +848,9 @@ local function createTeamRows(frame, firstParent)
 		row.specIcon:SetWidth(ICON_SIZE)
 		row.specIcon:SetScript("OnEnter", OnEnter)
 		row.specIcon:SetScript("OnLeave", OnLeave)
+		row.specIcon:SetScript("OnDoubleClick", OnClick)
 		row.specIcon:SetPoint("TOPLEFT", row.raceIcon, "TOPRIGHT", 5, 0)
+		row.specIcon.type = "talent"
 
 		-- Char name
 		row.name = CreateFrame("Button", nil, row)
@@ -523,7 +861,7 @@ local function createTeamRows(frame, firstParent)
 		row.name:SetScript("OnEnter", OnEnter)
 		row.name:SetScript("OnLeave", OnLeave)
 		row.name:SetPoint("TOPLEFT", row.specIcon, "TOPRIGHT", 4, 0)
-
+		
 		-- So we can do word wrapping
 		row.name:SetText("*")
 		row.name.fs = row.name:GetFontString()
@@ -585,6 +923,20 @@ local function createTeamInfo(parent)
 
 	frame.playerRows = createTeamRows(frame, frame.playerTeam)
 	
+	-- Deletion
+	frame.deleteButton = CreateFrame("Button", nil, frame)
+	frame.deleteButton:SetTextFontObject(GameFontNormalSmall)
+	frame.deleteButton:SetTextColor(1, 1, 1)
+	frame.deleteButton:SetPushedTextOffset(0,0)
+	frame.deleteButton:SetHeight(18)
+	frame.deleteButton:SetWidth(18)
+	frame.deleteButton:SetText(string.format("[%s%s%s]", RED_FONT_COLOR_CODE, "X", FONT_COLOR_CODE_CLOSE))
+	frame.deleteButton:SetScript("OnClick", deleteRecord)
+	frame.deleteButton:SetScript("OnEnter", OnEnter)
+	frame.deleteButton:SetScript("OnLeave", OnLeave)
+	frame.deleteButton:SetPoint("TOPRIGHT", frame, "TOPRIGHT", -4, 0)
+	frame.deleteButton.tooltip = L["Hold ALT and click the button to delete this arena record."]
+
 	return frame
 end
 
@@ -609,6 +961,15 @@ function GUI:CreateFrame()
 		updateCache()
 		updateFilters()
 		updateRecords()
+	end)
+	self.frame:SetScript("OnHide", function()
+		if( talentPopup ) then
+			talentPopup:Hide()
+		end
+		
+		if( racePopup ) then
+			racePopup:Hide()
+		end
 	end)
 
 	self.frame:SetHeight(440)

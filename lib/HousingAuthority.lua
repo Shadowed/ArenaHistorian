@@ -1,5 +1,5 @@
 local major = "HousingAuthority-1.2"
-local minor = tonumber(string.match("$Revision: 500 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 608 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 local HAInstance, oldRevision = LibStub:NewLibrary(major, minor)
@@ -550,7 +550,7 @@ local function dropdownRowClicked(self)
 	else
 		local selectedKeys = getValue(parent.parent, parent.data)
 		if( selectedKeys[self.key] ) then
-			selectedKeys[self.key] = nil
+			selectedKeys[self.key] = false
 			self.check:Hide()
 		else
 			selectedKeys[self.key] = true

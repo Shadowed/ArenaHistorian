@@ -4,7 +4,7 @@
 ## Author: Mayen
 ## Notes: Rated arena records
 ## SavedVariables: ArenaHistorianDB
-## SavedVariablesPerCharacter: ArenaHistoryData
+## SavedVariablesPerCharacter: ArenaHistoryCustomData, ArenaHistoryData
 ## OptionalDeps: LibStub, OptionHouse, HousingAuthority
 
 lib\LibStub-1.0\LibStub-1.0.xml

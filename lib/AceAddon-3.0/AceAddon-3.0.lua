@@ -1,5 +1,5 @@
---[[ $Id: AceAddon-3.0.lua 60131 2008-02-03 13:03:56Z nevcairiel $ ]]
-local MAJOR, MINOR = "AceAddon-3.0", 1
+--[[ $Id: AceAddon-3.0.lua 63220 2008-02-29 11:29:58Z nevcairiel $ ]]
+local MAJOR, MINOR = "AceAddon-3.0", 3
 local AceAddon, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not AceAddon then return end -- No Upgrade needed.
@@ -65,7 +65,7 @@ local function safecall(func, ...)
 end
 
 -- local functions that will be implemented further down
-local Enable, Disable, EnableModule, DisableModule, Embed, NewModule, GetModule, SetDefaultModuleState, SetDefaultModuleLibraries, SetEnabledState, SetDefaultModulePrototype
+local Enable, Disable, EnableModule, DisableModule, Embed, NewModule, GetModule, GetName, SetDefaultModuleState, SetDefaultModuleLibraries, SetEnabledState, SetDefaultModulePrototype
 
 -- used in the addon metatable
 local function addontostring( self ) return self.name end 
@@ -111,7 +111,7 @@ end
 function AceAddon:EmbedLibraries(addon, ...)
 	for i=1,select("#", ... ) do
 		local libname = select(i, ...)
-		self:EmbedLibrary(addon, libname, false, 3)
+		self:EmbedLibrary(addon, libname, false, 4)
 	end
 end
 
@@ -166,6 +166,7 @@ function NewModule(self, name, prototype, ...)
 	
 	module.IsModule = IsModuleTrue
 	module:SetEnabledState(self.defaultModuleState)
+	module.moduleName = name
 
 	if type(prototype) == "string" then
 		AceAddon:EmbedLibraries(module, prototype, ...)
@@ -188,6 +189,12 @@ function NewModule(self, name, prototype, ...)
 	self.modules[name] = module
 	
 	return module
+end
+
+--addon:GetName()
+-- Returns the real name of the addon or module, without any prefix
+function GetName(self)
+	return self.moduleName or self.name
 end
 
 --addon:Enable()
@@ -278,6 +285,7 @@ local mixins = {
 	SetEnabledState = SetEnabledState,
 	IterateModules = IterateModules,
 	IterateEmbeds = IterateEmbeds,
+	GetName = GetName,
 }
 local function IsModule(self) return false end
 local pmixins = {
@@ -376,18 +384,18 @@ function AceAddon:IterateModulesOfAddon(addon) return pairs(addon.modules) end
 -- Event Handling
 local function onEvent(this, event, arg1)
 	if event == "ADDON_LOADED" or event == "PLAYER_LOGIN" then
-		for i = 1, #AceAddon.initializequeue do
-			local addon = AceAddon.initializequeue[i]
+		-- if a addon loads another addon, recursion could happen here, so we need to validate the table on every iteration
+		while(#AceAddon.initializequeue > 0) do
+			local addon = tremove(AceAddon.initializequeue, 1)
+			-- this might be an issue with recursion - TODO: validate
 			if event == "ADDON_LOADED" then addon.baseName = arg1 end
-			AceAddon.initializequeue[i] = nil
 			AceAddon:InitializeAddon(addon)
 			tinsert(AceAddon.enablequeue, addon)
 		end
 		
 		if IsLoggedIn() then
-			for i = 1, #AceAddon.enablequeue do
-				local addon = AceAddon.enablequeue[i]
-				AceAddon.enablequeue[i] = nil
+			while(#AceAddon.enablequeue > 0) do
+				local addon = tremove(AceAddon.enablequeue, 1)
 				AceAddon:EnableAddon(addon)
 			end
 		end

@@ -21,8 +21,14 @@ ArenaHistLocals = {
 	["Total records"] = "Total records",
 	["Total visible"] = "Total visible",
 	["Browsing"] = "Browsing",
+	["OK"] = "OK",
 	
-	-- This is a simple race -> token map, we don't do vendor checks here
+	["Male"] = "Male",
+	["Female"] = "Female",
+	
+	["Hold ALT and click the button to delete this arena record."] = "Hold ALT and click the button to delete this arena record.",
+	
+	-- This is a simple race -> token map, we don't do gendor checks here
 	["TOKENS"] = {
 		["HUMAN_FEMALE"] = "Human",
 		["DWARF_FEMALE"] = "Dwarf",
@@ -34,7 +40,7 @@ ArenaHistLocals = {
 		["BLOODELF_FEMALE"] = "Bloof Elf",
 		["TAUREN_FEMALE"] = "Tauren",
 		["DRAENEI_FEMALE"] = "Draenei",
-	},	
+	},
 	
 	-- Zone -> abbreviation
 	["BEA"] = "BEA",
@@ -105,4 +111,7 @@ ArenaHistLocals = {
 	["Enables removing records that are over X weeks old."] = "Enables removing records that are over X weeks old.",
 	["How many weeks to save records"] = "How many weeks to save records",
 	["Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s"] = "Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s",
+	
+	["Enter the talent points spent in each tree for %s from %s."] = "Enter the talent points spent in each tree for %s from %s.",
+	
 }

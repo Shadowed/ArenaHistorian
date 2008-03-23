@@ -29,11 +29,11 @@ function ArenaHistorian:OnInitialize()
 	}
 	
 	if( not ArenaHistoryData ) then
-		ArenaHistoryData = {
-			[2] = {},
-			[3] = {},
-			[5] = {},
-		}
+		ArenaHistoryData = {[2] = {}, [3] = {}, [5] = {}}
+	end
+	
+	if( not ArenaHistoryCustomData ) then
+		ArenaHistoryCustomData = {}
 	end
 	
 	-- Prevents us from having to do 50 concats
@@ -44,11 +44,11 @@ function ArenaHistorian:OnInitialize()
 	-- Init DB
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
 	self.revision = tonumber(string.match("$Revision$", "(%d+)")) or 1
-	
-	playerName = UnitName("player")
 end
 
 function ArenaHistorian:OnEnable()
+	playerName = UnitName("player")
+
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("HONOR_CURRENCY_UPDATE", "CheckArenaReset")
@@ -106,7 +106,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		-- Resave list of player teams
 		for i=1, MAX_ARENA_TEAMS do
 			local teamName, teamSize = GetArenaTeam(i)
-			if( teamName ) then
+			if( teamName and teamSize ) then
 				arenaTeams[teamName .. teamSize] = true
 			end
 		end
@@ -155,22 +155,36 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			local spec = ""
 			
 			-- We don't have to inspect ourself to get info, it's always available
-			if( parseName == playerName ) then
-				spec = (select(3, GetTalentTabInfo(1)) or 0) .. "/" ..  (select(3, GetTalentTabInfo(2)) or 0) .. "/" ..  (select(3, GetTalentTabInfo(3)) or 0)
-
+			if( parseName == playerName or name == playerName ) then
+				local firstPoints = select(3, GetTalentTabInfo(1)) or 0
+				local secondPoints = select(3, GetTalentTabInfo(2)) or 0
+				local thirdPoints = select(3, GetTalentTabInfo(3)) or 0
+				
+				spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
+				
+				if( UnitSex(unit) == 2 ) then
+					playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
+				else
+					playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
+				end
+				
 			-- Check if Remembrance has data on them
 			elseif( IsAddOnLoaded("Remembrance") ) then
 				local tree1, tree2, tree3 = Remembrance:GetTalents(parseName, server)
 				if( tree1 and tree2 and tree3 ) then
-					spec = tree1 .. "/" .. tree2 .. "/" .. tree3
+					spec = string.format("%d/%d/%d", tree1, tree2, tree3)
 				end
 			end
 			
+			local data = parseName .. "," .. spec .. "," .. classToken .. "," .. (playerRaceInfo[name] or self:RaceToToken(race)) .. "," .. healingDone .. "," .. damageDone
+
 			-- Add it into our teammate list
 			if( faction == playerIndex ) then
-				table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+				table.insert(playerData, data)
+				--table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			else
-				table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
+				table.insert(enemyData, data)
+				--table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			end
 		end
 		
@@ -196,11 +210,12 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		end
 		
 		local runTime = GetBattlefieldInstanceRunTime() or 0
-		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
-		--local playerString = table.concat(":", playerData)
-		--local enemyString = table.concat(":", enemyData)
-		--local data = zoneText .. ":" .. bracket .. ":" .. (GetBattlefieldInstanceRunTime() or 0) .. ":" .. tostring(playerWon) .. ":" .. playerRating .. ":" .. playerChange .. ":" .. enemyRating .. ":" .. enemyChange .. ";" .. playerString .. ";" .. enemyString
+		--local index = string.format("%d::%s::%s", time(), playerName, enemyName)
+		--local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+		local playerString = table.concat(playerData, ":")
+		local enemyString = table.concat(enemyData, ":")
+		local index = time() .. "::" .. playerName .. "::" .. enemyName
+		local data = zoneText .. ":" .. bracket .. ":" .. (GetBattlefieldInstanceRunTime() or 0) .. ":" .. tostring(playerWon) .. ":" .. playerRating .. ":" .. playerChange .. ":" .. enemyRating .. ":" .. enemyChange .. ";" .. playerString .. ";" .. enemyString
 		
 		-- Save
 		ArenaHistoryData[bracket][index] = data
@@ -220,16 +235,14 @@ end
 function ArenaHistorian:ScanUnit(unit)
 	if( UnitIsPlayer(unit) and UnitIsVisible(unit) ) then
 		local name, server = UnitName(unit)
-		if( server ) then
+		if( server and server ~= "" ) then
 			name = name .. "-" .. server
 		end
 
-		if( not playerRaceInfo[name] ) then
-			if( UnitSex(unit) == 2 ) then
-				playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
-			else
-				playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
-			end
+		if( UnitSex(unit) == 2 ) then
+			playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
+		else
+			playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
 		end
 	end
 end
@@ -378,7 +391,8 @@ function ArenaHistorian:INSPECT_TALENT_READY()
 			server = GetRealmName()
 		end
 		
-		Remembrance:SaveTalentInfo(name, server, (UnitClass(inspectedUnit)))	
+		local class, classToken = UnitClass(inspectedUnit)
+		Remembrance:SaveTalentInfo(name, server, class, classToken)	
 
 		-- Remove them from queue
 		for i=1, #(inspectQueue) do
