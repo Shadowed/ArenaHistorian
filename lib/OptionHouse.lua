@@ -1,5 +1,5 @@
 local major = "OptionHouse-1.1"
-local minor = tonumber(string.match("$Revision: 661 $", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 669 $", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -960,20 +960,11 @@ local function createOHFrame()
 	end)
 	frame:SetScript("OnShow", function(self)
 		if( OptionHouseDB and OptionHouseDB.position ) then
+			local scale = self:GetEffectiveScale()
+			
 			self:ClearAllPoints()
-			self:SetPoint("TOPLEFT", nil, "BOTTOMLEFT", OptionHouseDB.position.x, OptionHouseDB.position.y)
+			self:SetPoint("TOPLEFT", nil, "BOTTOMLEFT", OptionHouseDB.position.x / scale, OptionHouseDB.position.y / scale)
 		end
-		
-		--[[
-		-- Check if we're secure
-		if( self:IsProtected() ) then
-			self:SetTexCoord(0, 0.25, 0, 1)
-			self.tooltip = L["SECURE_FRAME"]
-		else
-			self:SetTexCoord(0.25, 0.50, 0, 1)
-			self.tooltip = L["INSECURE_FRAME"]
-		end
-		]]
 	end)
 
 
@@ -1019,10 +1010,12 @@ local function createOHFrame()
 		mover:SetScript("OnMouseUp", function(self)
 			if( self.isMoving ) then
 				local parent = self:GetParent()
-				parent:StopMovingOrSizing()
-				OptionHouseDB.position = {x = parent:GetLeft(), y = parent:GetTop()}
-				
+				local scale = parent:GetEffectiveScale()
+
 				self.isMoving = nil
+				parent:StopMovingOrSizing()
+
+				OptionHouseDB.position = {x = parent:GetLeft() * scale, y = parent:GetTop() * scale}
 			end
 		end)
 		
@@ -1169,11 +1162,6 @@ function OptionHouse:GetFrame(type)
 end
 
 function OptionHouse:Open(addonName, parentCat, childCat)
-	if( InCombatLockdown() ) then
-		DEFAULT_CHAT_FRAME:AddMessage(L["IN_COMBAT"])
-		return
-	end
-	
 	argcheck(addonName, 1, "string", "nil")
 	argcheck(parentCat, 2, "string", "nil")
 	argcheck(childCat, 3, "string", "nil")
@@ -1195,11 +1183,6 @@ function OptionHouse:Open(addonName, parentCat, childCat)
 end
 
 function OptionHouse:OpenTab(id)
-	if( InCombatLockdown() ) then
-		DEFAULT_CHAT_FRAME:AddMessage(L["IN_COMBAT"])
-		return
-	end
-
 	argcheck(id, 1, "number")
 	
 	createOHFrame()
@@ -1332,11 +1315,12 @@ local function instanceLoaded()
 		-- Secure headers are supported so don't want the window stuck open in combat
 		evtFrame = CreateFrame("Frame")
 		evtFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
-		evtFrame:RegisterEvent("ADDON_LOADED")
 		evtFrame:SetScript("OnEvent",function(self, event)
 			if( event == "PLAYER_REGEN_DISABLED" and frame and frame:IsShown() ) then
-				HideUIPanel(frame)
-				DEFAULT_CHAT_FRAME:AddMessage(L["ENTERED_COMBAT"])
+				if( not OptionHouseDB or ( OptionHouseDB and OptionHouseDB.combatHide ) ) then
+					HideUIPanel(frame)
+					DEFAULT_CHAT_FRAME:AddMessage(L["ENTERED_COMBAT"])
+				end
 			end
 		end)
 
