@@ -1,5 +1,5 @@
 local major = "TalentGuess-1.0"
-local minor = tonumber(string.match("$Revision: 702$", "(%d+)") or 1)
+local minor = tonumber(string.match("$Revision: 703$", "(%d+)") or 1)
 
 assert(LibStub, string.format("%s requires LibStub.", major))
 
@@ -9,10 +9,18 @@ if( not Talents ) then return end
 local L = {
 	["BAD_ARGUMENT"] = "bad argument #%d for '%s' (%s expected, got %s)",
 	["MUST_CALL"] = "You must call '%s' from a registered %s object.",
+	["NO_DATA"] = "%s requires TalentGuessData-1.0, make sure you installed the library correctly.",
+	["BAD_FUNCTION"] = "Bad function passed to '%s', doesn't seem to exist.",
+	["BAD_CLASS"] = "No class '%s' found in '%s'.",
 }
 
-Talents.spells = TalentGuess10Spells
-Talents.castSpells = TalentGuess10CastOnly
+-- Load the latest data
+local Data = LibStub:GetLibrary("TalentGuessData-1.0", true)
+assert(Data, string.format(L["NO_DATA"], major))
+
+Talents.spells = Data.Spells
+Talents.fotmTalents = Data.FoTM
+Talents.callbacks = Talents.callbacks or {}
 Talents.enemySpellRecords = Talents.enemySpellRecords or {}
 Talents.totalRegistered = Talents.totalRegistered or 0
 Talents.registeredObjs = Talents.registeredObjs or {}
@@ -20,9 +28,9 @@ Talents.frame = Talents.frame or CreateFrame("Frame")
 
 local enemySpellRecords = Talents.enemySpellRecords
 local registeredObjs = Talents.registeredObjs
-local talentPoints = {}
-local checkBuffs = {}
-local methods = {"EnableCollection", "DisableCollection", "GetTalents"}
+local callbacks = Talents.callbacks
+local talentPoints, checkBuffs, castOnly = {}, {}, {}
+local methods = {"EnableCollection", "DisableCollection", "GetTalents", "GetUsed", "GetFullGuess", "RegisterCallback", "UnregisterCallback"}
 
 -- Validation for passed arguments
 local function assert(level, condition, message)
@@ -75,9 +83,35 @@ function Talents.DisableCollection(self)
 	Talents:CheckCollecting()
 end
 
+function Talents.RegisterCallback(self, handler, func)
+	argcheck(handler, 2, "table", "function", "string")
+	argcheck(func, 3, "string", "nil")	
+	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "RegisterCallback", major))
+	
+	if( type(handler) == "table" and type(func) == "string" ) then
+		assert(3, handler[func], string.format(L["BAD_FUNCTION"], "RegisterCallback"))
+		callbacks[func] = handler
+	elseif( type(handler) == "function" ) then
+		assert(3, handler, string.format(L["BAD_FUNCTION"], "RegisterCallback"))
+		callbacks[handler] = true
+	elseif( type(handler) == "string" ) then
+		assert(3, getglobal(handler), string.format(L["BAD_FUNCTION"], "RegisterCallback"))
+		callbacks[handler] = true
+	end
+end
+
+function Talents.UnregisterCallback(self, handler, func)
+	argcheck(handler, 2, "table", "function", "string")
+	argcheck(func, 3, "string", "nil")
+	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "UnregisterCallback", major))
+
+	callbacks[handler] = nil
+end
+
 -- Return our guess at their talents
-function Talents:GetTalents(name)
-	argcheck(name, 1, "string")
+function Talents.GetTalents(self, name)
+	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "GetTalents", major))
+	argcheck(name, 2, "string")
 	
 	if( not enemySpellRecords[name] ) then
 		return nil
@@ -90,9 +124,7 @@ function Talents:GetTalents(name)
 	for spellID in pairs(enemySpellRecords[name]) do
 		local treeNum, points, isBuff
 		if( Talents.spells[spellID] ) then
-			treeNum, points, isBuff = string.split(":", Talents.spells[spellID])
-		elseif( Talents.castSpells[spellID] ) then
-			treeNum, points, isBuff = string.split(":", Talents.castSpells[spellID])
+			treeNum, points, isBuff, isCast = string.split(":", Talents.spells[spellID])
 		end
 		
 		treeNum = tonumber(treeNum)
@@ -106,15 +138,72 @@ function Talents:GetTalents(name)
 	return talentPoints[1], talentPoints[2], talentPoints[3]
 end
 
+-- Returns the abilities used for this person
+function Talents.GetUsed(self, name)
+	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "GetUsed", major))
+	argcheck(name, 2, "string")
+	
+	if( not enemySpellRecords[name] ) then
+		return nil
+	end
+	
+	local spellsUsed = {[1] = {}, [2] = {}, [3] = {}}
+	for spellID in pairs(enemySpellRecords[name]) do
+		local treeNum, points, isBuff
+		if( Talents.spells[spellID] ) then
+			treeNum, points, isBuff, isCast = string.split(":", Talents.spells[spellID])
+		end
+		
+		treeNum = tonumber(treeNum)
+		points = tonumber(points)
+		
+		spellsUsed[treeNum][spellID] = points
+	end
+	
+	return spellsUsed[1], spellsUsed[2], spellsUsed[3]
+end
+
+-- Returns our guess at the full talent tree
+function Talents.GetFullGuess(self, one, two, three, class)
+	argcheck(one, 2, "number")
+	argcheck(two, 2, "number")
+	argcheck(three, 2, "number")
+	argcheck(class, 5, "string")
+	assert(3, self.id and registeredObjs[self.id], string.format(L["MUST_CALL"], "GetUsed", major))
+	assert(3, Talents.fotmTalents[class], string.format(L["BAD_CLASS"], class, "GetFullGuess"))
+	
+	local results = Talents.fotmTalents[class][string.format("%d:%d:%d", one, two, three)]
+	if( not results ) then
+		return nil
+	end
+	
+	one, two, three = string.split(":", results)
+	
+	return tonumber(one) or 0, tonumber(two) or 0, tonumber(three) or 0
+end
+
 -- PRIVATE METHODS
 -- Add a new spell record for this person
 local function addSpell(spellID, guid, name)
-	-- Record that they either used, or gained this spellID so we can parse it later
 	if( not enemySpellRecords[name] ) then
 		enemySpellRecords[name] = {}
+	elseif( enemySpellRecords[name][spellID] ) then
+		return
 	end
+	
 
 	enemySpellRecords[name][spellID] = true
+
+	-- New spellID added, trigger callbacks
+	for func, handler in pairs(callbacks) do
+		if( type(handler) == "table" ) then
+			handler[func](handler, name, spellID)
+		elseif( type(func) == "string" ) then
+			getglobal(func)(name, spellID)
+		else
+			func(name, spellID)
+		end
+	end
 end
 
 -- Buff scan for figuring out talents if we need to
@@ -148,7 +237,7 @@ local COMBATLOG_OBJECT_TYPE_PLAYER = COMBATLOG_OBJECT_TYPE_PLAYER
 local COMBATLOG_OBJECT_REACTION_HOSTILE	= COMBATLOG_OBJECT_REACTION_HOSTILE
 local ENEMY_AFFILIATION = bit.bor(COMBATLOG_OBJECT_REACTION_HOSTILE, COMBATLOG_OBJECT_TYPE_PLAYER)
 
-local eventRegistered = {["SPELL_AURA_APPLIED"] = true, ["SPELL_CAST_SUCCESS"] = true, ["SPELL_CAST_START"] = true}
+local eventRegistered = {["SPELL_AURA_APPLIED"] = true, ["SPELL_ENERGIZE"] = true, ["SPELL_CAST_SUCCESS"] = true, ["SPELL_CAST_START"] = true}
 local function COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, ...)
 	if( not eventRegistered[eventType] ) then
 		return
@@ -157,26 +246,35 @@ local function COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, sou
 	-- Enemy gained a debuff
 	if( eventType == "SPELL_AURA_APPLIED" and bit.band(destFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
 		local spellID, spellName, spellSchool, auraType = ...
-		if( Talents.spells[spellID] and auraType == "BUFF" ) then
+		if( Talents.spells[spellID] and not castOnly[spellID] and auraType == "BUFF" ) then
 			addSpell(spellID, destGUID, destName)
+		end
+	
+	-- Energized through something
+	elseif( eventType == "SPELL_ENERGIZE" and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
+		local spellID, spellName, spellSchool, amount, powerType = ...
+		
+		if( Talents.spells[spellID] ) then
+			addSpell(spellID, sourceGUID, sourceName)
 		end
 	
 	-- Spell started to cast
 	elseif( eventType == "SPELL_CAST_START"  and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
 		local spellID, spellName, spellSchool, auraType = ...
-		if( Talents.spells[spellID] or Talents.castSpells[spellID] ) then
+		if( Talents.spells[spellID] ) then
 			addSpell(spellID, sourceGUID, sourceName)
 		end
 
 	-- Spell casted succesfully
 	elseif( eventType == "SPELL_CAST_SUCCESS" and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
 		local spellID, spellName, spellSchool, auraType = ...
-		if( Talents.spells[spellID] or Talents.castSpells[spellID] ) then
+		if( Talents.spells[spellID] ) then
 			addSpell(spellID, sourceGUID, sourceName)
 		end
 	end
 end
 
+-- Event handler
 local function OnEvent(self, event, ...)
 	if( event == "COMBAT_LOG_EVENT_UNFILTERED" ) then
 		COMBAT_LOG_EVENT_UNFILTERED(...)
@@ -203,41 +301,15 @@ Talents:CheckCollecting()
 
 -- Cache our list of buffs that we should scan when targeting
 for spellID, data in pairs(Talents.spells) do
-	local treeNum, points, isBuff = string.split(":", data)
+	local treeNum, points, isBuff, isCast = string.split(":", data)
 	if( isBuff == "true" ) then
 		local name, rank = GetSpellInfo(spellID)
 		if( name ) then
 			checkBuffs[name .. (rank or "")] = spellID
 		end
 	end
-end
-
--- DEBUG
---[[
-function used(name)
-	local list = {}
-	for spellID in pairs(enemySpellRecords[name]) do
-		local name, rank = GetSpellInfo(spellID)
-		if( name ) then
-			if( rank and rank ~= "" ) then
-				table.insert(list, string.format("[#%d] %s (%s)", spellID, name, rank))
-			else
-				table.insert(list, string.format("[#%d] %s", spellID, name))
-			end
-		end
-	end
 	
-	ChatFrame1:AddMessage(table.concat(list, ", "))
-end
-
-
-function test()
-	for name in pairs(enemySpellRecords) do
-		local one, two, three = Talents:GetTalents(name)
-		if( one and two and three ) then
-			ChatFrame1:AddMessage(string.format("[%s] %d/%d/%d", name, one, two, three))
-			used(name)
-		end
+	if( isCast == "true" ) then
+		castOnly[spellID] = true
 	end
 end
-]]

@@ -1,9 +1,18 @@
+local major = "TalentGuessData-1.0"
+local minor = tonumber(string.match("$Revision: 703$", "(%d+)") or 1)
+
+assert(LibStub, string.format("%s requires LibStub.", major))
+
+local Data = LibStub:NewLibrary(major, minor)
+if( not Data ) then return end
+
 -- The format is pretty simple
--- [spellID] = "tree #:points required:checkBuffs"
-TalentGuess10Spells = {
+-- [spellID] = "tree #:points required:checkBuffs:isCastOnly"
+Data.Spells = {
 	-- ROGUES
 
 	--[[ Assassination ]]--
+	[14181] = "1:11",
 	[14177] = "1:21",
 	[1329] = "1:41",
 	[34411] = "1:41",
@@ -65,9 +74,9 @@ TalentGuess10Spells = {
 	[16864] = "3:11:true",
 	[17116] = "3:21",
 	[18562] = "3:31",
-	[33881] = "3:32",
-	[33882] = "3:33",
-	[33883] = "3:34",
+	[45281] = "3:32:true",
+	[45282] = "3:33:true",
+	[45283] = "3:34:true",
 	[33891] = "3:41",
 	
 	-- HUNTERS
@@ -105,6 +114,8 @@ TalentGuess10Spells = {
 	-- MAGES
 	
 	--[[ Arcane ]]--
+	[12536] = "1:10",
+	[29442] = "1:10",
 	[12043] = "1:21",
 	[12042] = "1:31",
 	[31589] = "1:41",
@@ -139,6 +150,7 @@ TalentGuess10Spells = {
 	-- PALADINS
 	
 	--[[ Holy ]]--
+	[20272] = "1:20",
 	[20216] = "1:21",
 	[20473] = "1:31",
 	[20929] = "1:31",
@@ -148,6 +160,8 @@ TalentGuess10Spells = {
 	[31842] = "1:41",
 	
 	--[[ Protection ]]--
+	[20217] = "2:11:nil:true",
+	[25898] = "2:11:nil:true",
 	[20177] = "2:21",
 	[20179] = "2:22",
 	[20181] = "2:23",
@@ -175,7 +189,11 @@ TalentGuess10Spells = {
 	
 	--[[ Disc ]]--
 	[14751] = "1:11",
-	[10060] = "1:31",
+	[10060] = "1:31:nil:true",
+	[45237] = "1:32:true",
+	[45241] = "1:33:true",
+	[45242] = "1:34:true",
+	[33206] = "1:41:nil:true",
 	
 	--[[ Holy ]]--
 	[15237] = "2:11",
@@ -222,6 +240,7 @@ TalentGuess10Spells = {
 	[16246] = "1:11",
 	[29063] = "1:18",
 	[16166] = "1:31",
+	[39805] = "1:40",
 	
 	--[[ Enhancement ]]--
 	[43339] = "2:11",
@@ -234,6 +253,10 @@ TalentGuess10Spells = {
 	
 	--[[ Resto ]]--
 	[16188] = "3:21",
+	[31616] = "3:40",
+	[974] = "3:41:nil:true",
+	[32593] = "3:41:nil:true",
+	[32594]	= "3:41:nil:true",
 	
 	-- WARRIOR
 	
@@ -330,14 +353,28 @@ TalentGuess10Spells = {
 	[30414] = "3:41",
 }
 
-TalentGuess10CastOnly = {
-	-- Priest
-	--[[ Disc ]]--
-	[33206] = "1:41",
-
-	-- Shaman
-	--[[ Restoration ]]--
-	[974] = "3:41",
-	[32593] = "3:41",
-	[32594]	= "3:41",
+-- Attempts to guess their real spec if we don't have full data, or we missed minor trees
+Data.FoTM = {
+	["ROGUE"] = {
+		["0:0:41"] = "20:0:41",
+	},
+	["PALADIN"] = {
+		["41:0:0"] = "41:20:0",
+	},
+	["DRUID"] = {
+		["0:11:34"] = "8:11:42",
+		["11:11:34"] = "11:11:39",
+	},
+	["HUNTER"] = {
+		["41:0:0"] = "41:20:0",
+		["0:41:0"] = "11:41:9",
+	},
+	["MAGE"] = {
+		["0:0:41"] = "0:0:61",
+		["10:0:41"] = "17:0:44",
+	},
+	["PRIEST"] = {},
+	["SHAMAN"] = {},
+	["WARRIOR"] = {},
+	["WARLOCK"] = {},
 }
