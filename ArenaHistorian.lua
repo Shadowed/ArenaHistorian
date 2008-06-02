@@ -11,18 +11,21 @@ local instanceType
 local arenaTeams = {}
 local alreadyInspected = {}
 local inspectQueue = {}
+local friendlyTalentData = {}
 local inspectedUnit
-local playerName
+local modEnabled
 
 function ArenaHistorian:OnInitialize()
 	-- Defaults
 	self.defaults = {
 		profile = {
+			enableGuess = true,
 			enableMax = false,
 			maxRecords = 5,
 			enableWeek = false,
 			maxWeeks = 4,
 			arenaPoints = 0,
+			lastBracket = 2,
 			
 			resets = {},
 		}
@@ -40,15 +43,25 @@ function ArenaHistorian:OnInitialize()
 	for i=1, MAX_PARTY_MEMBERS do
 		partyMap[i] = "party" .. i .. "target"
 	end
-
+	
 	-- Init DB
 	self.db = LibStub:GetLibrary("AceDB-3.0"):New("ArenaHistorianDB", self.defaults)
 	self.revision = tonumber(string.match("$Revision$", "(%d+)")) or 1
+
+	-- Register the talent guessing lib
+	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
+	
+	-- Check for bugged games
+	for bracket, gameData in pairs(ArenaHistoryData) do
+		for id in pairs(gameData) do
+			if( not string.match(id, "([0-9]+)::(.+)::(.+)") ) then
+				ArenaHistoryData[bracket][id] = nil
+			end
+		end
+	end
 end
 
 function ArenaHistorian:OnEnable()
-	playerName = UnitName("player")
-
 	self:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("HONOR_CURRENCY_UPDATE", "CheckArenaReset")
@@ -60,10 +73,6 @@ end
 function ArenaHistorian:OnDisable()
 	self:UnregisterAllEvents()
 	instanceType = nil
-end
-
-function ArenaHistorian:Reload()
-
 end
 
 function ArenaHistorian:CheckArenaReset()
@@ -112,7 +121,9 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		end
 		
 		-- Record rating/team names
-		local playerIndex, playerWon, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
+		local playerIndex, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
+		local playerWon = -1
+		
 		for i=0, 1 do
 			local teamName, oldRating, newRating = GetBattlefieldTeamInfo(i)
 			if( arenaTeams[teamName .. bracket] ) then
@@ -121,7 +132,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 				playerChange = newRating - oldRating
 				
 				if( GetBattlefieldWinner() == i ) then
-					playerWon = true
+					playerWon = 1
 				end
 				
 				playerIndex = i
@@ -132,9 +143,14 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			end
 		end
 		
-		-- Couldn't get data
-		if( not enemyName or not playerName or not playerIndex ) then
+		-- Couldn't find player team data
+		if( not playerName or not playerIndex ) then
 			return
+		end
+
+		-- Check for draw game
+		if( not GetBattlefieldTeamInfo(GetBattlefieldWinner()) ) then
+			playerWon = 0
 		end
 		
 		-- Score data
@@ -151,41 +167,49 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 				parseName = name
 			end
 
-			-- Get talent data from Remembrance if available
+			-- Grab talent data if we have it available
 			local spec = ""
-			
+			local guessTalents = false
+						
 			-- We don't have to inspect ourself to get info, it's always available
-			if( parseName == playerName or name == playerName ) then
+			if( name == UnitName("player") ) then
 				local firstPoints = select(3, GetTalentTabInfo(1)) or 0
 				local secondPoints = select(3, GetTalentTabInfo(2)) or 0
 				local thirdPoints = select(3, GetTalentTabInfo(3)) or 0
 				
 				spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-				
-				if( UnitSex(unit) == 2 ) then
-					playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
+								
+				if( UnitSex("player") == 2 ) then
+					playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_MALE" 
 				else
-					playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
+					playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_FEMALE"
 				end
+			
+			-- Group member data
+			elseif( friendlyTalentData[name] ) then
+				spec = friendlyTalentData[name]
 				
-			-- Check if Remembrance has data on them
-			elseif( IsAddOnLoaded("Remembrance") ) then
-				local tree1, tree2, tree3 = Remembrance:GetTalents(parseName, server)
-				if( tree1 and tree2 and tree3 ) then
-					spec = string.format("%d/%d/%d", tree1, tree2, tree3)
+			-- See if we have custom data on them
+			elseif( faction ~= playerIndex ) then
+				local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(name)
+				if( firstPoints and secondPoints and thirdPoints ) then
+					spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
+					guessTalents = true
 				end
 			end
 			
-			local data = parseName .. "," .. spec .. "," .. classToken .. "," .. (playerRaceInfo[name] or self:RaceToToken(race)) .. "," .. healingDone .. "," .. damageDone
-
-			-- Add it into our teammate list
+			-- Add it to the team list
+			local data = string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone)
 			if( faction == playerIndex ) then
 				table.insert(playerData, data)
-				--table.insert(playerData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			else
 				table.insert(enemyData, data)
-				--table.insert(enemyData, string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone))
 			end
+		end
+		
+		-- Bugged game, this isn't really the best way of doing it though, but it works
+		if( #(enemyData) == 0 or #(playerData) == 0 ) then
+			return
 		end
 		
 		-- Save player information
@@ -194,7 +218,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			
 			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>
 			
-			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;<player team mates>;<enemy team mates>"
+			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;isGuessTalents;<player team mates>;<enemy team mates>"
 		]]
 		
 		-- Translate localized zone text to an unlocalized version
@@ -210,12 +234,8 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		end
 		
 		local runTime = GetBattlefieldInstanceRunTime() or 0
-		--local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		--local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
-		local playerString = table.concat(playerData, ":")
-		local enemyString = table.concat(enemyData, ":")
-		local index = time() .. "::" .. playerName .. "::" .. enemyName
-		local data = zoneText .. ":" .. bracket .. ":" .. (GetBattlefieldInstanceRunTime() or 0) .. ":" .. tostring(playerWon) .. ":" .. playerRating .. ":" .. playerChange .. ":" .. enemyRating .. ":" .. enemyChange .. ";" .. playerString .. ";" .. enemyString
+		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
+		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d:%s;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, tostring(guessTalents), table.concat(playerData, ":"), table.concat(enemyData, ":"))
 		
 		-- Save
 		ArenaHistoryData[bracket][index] = data
@@ -225,7 +245,7 @@ end
 
 -- Get enemy/team mate races
 function ArenaHistorian:PLAYER_TARGET_CHANGED()
-	self:ScanUnit("mouseover")
+	self:ScanUnit("target")
 end
 
 function ArenaHistorian:UPDATE_MOUSEOVER_UNIT()
@@ -236,7 +256,7 @@ function ArenaHistorian:ScanUnit(unit)
 	if( UnitIsPlayer(unit) and UnitIsVisible(unit) ) then
 		local name, server = UnitName(unit)
 		if( server and server ~= "" ) then
-			name = name .. "-" .. server
+			name = string.format("%s-%s", name, server)
 		end
 
 		if( UnitSex(unit) == 2 ) then
@@ -244,6 +264,13 @@ function ArenaHistorian:ScanUnit(unit)
 		else
 			playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
 		end
+	end
+end
+
+function ArenaHistorian:CHAT_MSG_BG_SYSTEM_NEUTRAL(event, msg)
+	if( msg == L["The Arena battle has begun!"] ) then
+		self:UnregisterEvent("RAID_ROSTER_UPDATE")
+		self:UnregisterEvent("INSPECT_TALENT_READY")
 	end
 end
 
@@ -258,14 +285,11 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 		self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
-		
-		-- Get party talents as well if Remembrance is installed
-		if( IsAddOnLoaded("Remembrance") ) then
-			self:RegisterEvent("INSPECT_TALENT_READY")
-			self:RegisterEvent("RAID_ROSTER_UPDATE")
-			self:RAID_ROSTER_UPDATE()
-		end
-		
+		self:RegisterEvent("INSPECT_TALENT_READY")
+		self:RegisterEvent("RAID_ROSTER_UPDATE")
+		self:RegisterEvent("CHAT_MSG_BG_SYSTEM_NEUTRAL")
+		self:RAID_ROSTER_UPDATE()
+			
 		-- Scan magic to make sure we get races of enemies
 		if( not self.scanFrame ) then
 			local timeElapsed = 0
@@ -273,7 +297,7 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 			self.scanFrame:SetScript("OnUpdate", function(self, elapsed)
 				timeElapsed = timeElapsed + elapsed
 				
-				if( timeElapsed >= 1 ) then
+				if( timeElapsed >= 2 ) then
 					timeElapsed = 0
 					for i=1, GetNumPartyMembers() do
 						local unit = partyMap[i]
@@ -286,21 +310,37 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 		else
 			self.scanFrame:Show()
 		end
+		
+		-- Enable talent module
+		if( self.db.profile.enableGuess ) then
+			self.talents:EnableCollection()
+		end
+		
+		mobEnabled = true
 
 	-- Was in an arena, but left it
-	elseif( type ~= "arena" and instanceType == "arena" ) then
+	elseif( type ~= "arena" and instanceType == "arena" and modEnabled ) then
 		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 		self:UnregisterEvent("PLAYER_TARGET_CHANGED")
 		self:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
 		self:UnregisterEvent("RAID_ROSTER_UPDATE")
 		self:UnregisterEvent("INSPECT_TALENT_READY")
-		self.scanFrame:Hide()
+		self:UnregisterEvent("CHAT_MSG_BG_SYSTEM_NEUTRAL")
+		
+		if( self.scanFrame ) then
+			self.scanFrame:Hide()
+		end
+		
+		modEnabled = nil
 		
 		-- Clear temp, blah blah blah
 		inspectedUnit = nil
 		for i=#(inspectQueue), 1, -1 do
 			table.remove(inspectQueue, i)
 		end
+
+		-- Disable talent module
+		self.talents:DisableCollection()
 	end
 	
 	instanceType = type
@@ -355,24 +395,17 @@ end
 -- INSPECTION
 -- Scan party for talents
 function ArenaHistorian:RAID_ROSTER_UPDATE()
-	-- Arena started, stop inspecting
-	if( not GetPlayerBuffTexture(L["Arena Preparation"]) ) then
-		self:UnregisterEvent("RAID_ROSTER_UPDATE")
-		self:UnregisterEvent("INSPECT_TALENT_READY")
-		return
-	end
-
 	-- Inspect raid
 	for i=1, GetNumRaidMembers() do
 		local unit = "raid" .. i
 		local name = UnitName(unit)
-		
-		if( UnitIsVisible(unit) and not alreadyInspected[name] ) then
-			alreadyInspected[name] = nil
+				
+		if( not UnitIsUnit("player", unit) and UnitIsVisible(unit) and not alreadyInspected[name] ) then
+			alreadyInspected[name] = true
 			self:ScanUnit(unit)
 			
-			table.insert(inspectQueue, name)
-			
+			table.insert(inspectQueue, unit)
+
 			-- Nobody else is queued yet, so start it up
 			if( not inspectedUnit ) then
 				inspectedUnit = unit
@@ -387,15 +420,18 @@ function ArenaHistorian:INSPECT_TALENT_READY()
 	if( inspectedUnit and UnitExists(inspectedUnit) ) then
 		-- Save their talent data
 		local name, server = UnitName(inspectedUnit)
-		if( not server or server == "" ) then
-			server = GetRealmName()
+		if( server and server ~= "" ) then
+			name = string.format("%s-%s", name, server)
 		end
 		
-		local class, classToken = UnitClass(inspectedUnit)
-		Remembrance:SaveTalentInfo(name, server, class, classToken)	
+		local firstPoints = select(3, GetTalentTabInfo(1, true)) or 0
+		local secondPoints = select(3, GetTalentTabInfo(2, true)) or 0
+		local thirdPoints = select(3, GetTalentTabInfo(3, true)) or 0
+		
+		friendlyTalentData[name] = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
 
 		-- Remove them from queue
-		for i=1, #(inspectQueue) do
+		for i=#(inspectQueue), 1, -1 do
 			if( inspectQueue[i] == inspectedUnit ) then
 				table.remove(inspectQueue, i)
 			end

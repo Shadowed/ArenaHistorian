@@ -19,11 +19,15 @@ function Config:OnInitialize()
 			ArenaHistorian.modules.GUI.frame:Show()
 		elseif( msg == "config" ) then
 			OptionHouse:Open("Arena Historian")
+		elseif( msg == "sync" ) then
+			ArenaHistorian.modules.Sync.CreateGUI()
+			ArenaHistorian.modules.Sync.frame:Show()
 		else
 			DEFAULT_CHAT_FRAME:AddMessage(L["ArenaHistorian slash commands"])
 			DEFAULT_CHAT_FRAME:AddMessage(L[" - history - Shows the arena history panel"])
 			DEFAULT_CHAT_FRAME:AddMessage(L[" - config - Opens the OptionHouse configuration panel"])
 			DEFAULT_CHAT_FRAME:AddMessage(L[" - clean - Forces a history check to be ran, will remove anything that doesn't match the options set in the configuration."])
+			DEFAULT_CHAT_FRAME:AddMessage(L[" - sync - Shows the arena history sync frame"])
 		end
 	end
 	
@@ -45,15 +49,13 @@ function Config:Get(var)
 	return ArenaHistorian.db.profile[var]
 end
 
-function Config:Reload()
-	ArenaHistorian:Reload()
-end
-
 function Config:CreateUI()
 	local currentDate = date("%c", time())
 
 	local config = {
 		{ group = L["General"], type = "groupOrder", order = 1 },
+		{ order = 0, group = L["General"], text = L["Enable talent guess"], help = L["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."], type = "check", var = "enableGuess"},
+
 		{ order = 1, group = L["General"], text = L["Enable maximum records"], help = L["Enables only storing the last X entered records."], type = "check", var = "enableMax"},
 		{ order = 2, group = L["General"], text = L["Maximum saved records"], help = L["How many records to save per a bracket, for example if you set it to 10 then you'll only keep the last 10 matches for each bracket, older records are overwritten by newer ones."], type = "input", numeric = true, default = 5, width = 30, var = "maxRecords"},
 
@@ -61,5 +63,5 @@ function Config:CreateUI()
 		{ order = 4, group = L["General"], text = L["How many weeks to save records"], help = string.format(L["Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s"], currentDate), type = "input", numeric = true, default = 5, width = 30, var = "maxWeeks"},
 	}
 
-	return HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", onSet = "Reload", handler = self})	
+	return HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", handler = self})	
 end

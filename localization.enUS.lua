@@ -14,6 +14,7 @@ ArenaHistLocals = {
 	["Unknown"] = "Unknown",
 	["Arena Preparation"] = "Arena Preparation",
 	["Enemy team name"] = "Enemy team name",
+	["Enemy player name"] = "Enemy player name",
 	["Search"] = "Search...",
 	["Min rate"] = "Min rate",
 	["Max rate"] = "Max rate",
@@ -27,7 +28,37 @@ ArenaHistLocals = {
 	["Female"] = "Female",
 	
 	["Hold ALT and click the button to delete this arena record."] = "Hold ALT and click the button to delete this arena record.",
+
+	["The Arena battle has begun!"] = "The Arena battle has begun!",
 	
+	-- Syncing
+	["Deny"] = "Deny",
+	["%s has requested missing data for %dvs%d, sync data?"] = "%s has requested missing data for %dvs%d, sync data?",
+	["Data Syncing"] = "Data Syncing",
+	["Sync"] = "Sync",
+	
+
+	["Waiting for sync to be sent"] = "Waiting for sync to be sent",
+
+	["Timed out, no data received"] = "Timed out, no data received",
+	["Timeout: %d seconds"] = "Timeout: %d seconds",
+	["Timeout: ----"] = "Timeout: ----",
+	
+	["No new games to sync"] = "No new games to sync",
+	["Player '%s' is not online"] = "Player '%s' is not online",
+	["Invalid data entered"] = "Invalid data entered",
+	["Request sent, waiting for approval"] = "Request sent, waiting for approval",
+	["Cannot send sync, player isn't on your team"] = "Cannot send sync, player isn't on your team",
+	["Request accepted, waiting for game list"] = "Request accepted, waiting for game list",
+	["Request accepted, sending game list"] = "Request accepted, sending game list",
+	["Request denied"] = "Request denied",
+	["Request denied, you are not on the same team"] = "Request denied, you are not on the same team",
+	["Finished! %d new games received"] = "Finished! %d new games received",
+	["Finished! %d new games sent"] = "Finished! %d new games sent",
+	["Sent %d of %d"] = "Sent %d of %d",
+	["Receiving %d of %d"] = "Receiving %d of %d",
+	["Waiting for data, %d total games to sync"] = "Waiting for data, %d total games to sync",
+
 	-- This is a simple race -> token map, we don't do gendor checks here
 	["TOKENS"] = {
 		["HUMAN_FEMALE"] = "Human",
@@ -98,8 +129,12 @@ ArenaHistLocals = {
 	[" - history - Shows the arena history panel"] = " - history - Shows the arena history panel",
 	[" - config - Opens the OptionHouse configuration panel"] = " - config - Opens the OptionHouse configuration panel",
 	[" - clean - Forces a history check to be ran, will remove anything that doesn't match the options set in the configuration."] = " - clean - Forces a history check to be ran, will remove anything that doesn't match the options set in the configuration.",
+	[" - sync - Shows the arena history sync frame"] = " - sync - Shows the arena history sync frame",
 	
 	["General"] = "General",
+	["Enable talent guessing"] = "Enable talent guessing",
+	["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."] = "Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea.",
+	
 	["Enable maximum records"] = "Enable maximum records",
 
 	["Enables only storing the last X entered records."] = "Enables only storing the last X entered records.",

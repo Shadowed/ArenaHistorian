@@ -90,20 +90,7 @@ local function setTalentData(self)
 	end
 	
 	talentPopup:Hide()
-
-	-- Update the spec icon
-	local parentIcon = parent.currentFrame
-	if( not parentIcon ) then
-		return
-	end
-	
-	local icon, tooltip = GUI:GetSpecName(parentIcon.classToken, talents)
-	parentIcon.tooltip = tooltip
-	parentIcon.bracket = GUI.frame.bracket
-	parentIcon.teamName = parentIcon.teamName
-	parentIcon.name = parentIcon.name
-	parentIcon:SetNormalTexture("Interface\\Icons\\" .. icon)
-	parentIcon:Show()
+	GUI:RefreshView()
 end
 
 local function popupTalentRequest(frame, bracket, teamName, name)
@@ -203,13 +190,13 @@ local function popupTalentRequest(frame, bracket, teamName, name)
 		talent = frame.spec
 	end
 
-	if( talent ~= "" ) then
+	if( talent and talent ~= "" ) then
 		one, two, three = string.split("/", talent)
 	end
 
-	popup.pointOne:SetNumber(one or 0)
-	popup.pointTwo:SetNumber(two or 0)
-	popup.pointThree:SetNumber(three or 0)
+	popup.pointOne:SetNumber(tonumber(one) or 0)
+	popup.pointTwo:SetNumber(tonumber(two) or 0)
+	popup.pointThree:SetNumber(tonumber(three) or 0)
 end
 
 -- Popup request window for race/sex
@@ -236,17 +223,7 @@ local function dropdownSelected()
 		ArenaHistoryCustomData[parent.id] = string.format(":%s", race)
 	end
 
-	-- Update the spec icon
-	local parentIcon = parent.currentFrame
-	if( not parentIcon ) then
-		return
-	end
-	
-	local coords = RACE_ICONS[raceToken]
-	parentIcon.tooltip = L[raceToken] or L["Unknown"]
-	parentIcon:SetNormalTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Races")
-	parentIcon:GetNormalTexture():SetTexCoord(coords[1], coords[2], coords[3], coords[4])
-	parentIcon:Show()
+	GUI:RefreshView()
 end
 
 local function initSexDropdown()
@@ -431,9 +408,9 @@ local function updateCache()
 			local endTime, _, playerTeamName, _, enemyTeamName = string.split("::", id)
 			endTime = tonumber(endTime)
 			
-			if( endTime ) then
+			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
-				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange = string.split(":", matchData)
+				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, guessTalents = string.split(":", matchData)
 				
 				-- Generate the player and enemy team mate info
 				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
@@ -453,21 +430,22 @@ local function updateCache()
 					stats[teamID] = {won = 0, lost = 0}
 				end
 				
-				if( playerWon == "true" ) then
+				if( playerWon == "true" or playerWon == "1" ) then
 					stats[teamID].won = stats[teamID].won + 1
 					mapStats[arenaZone].won = mapStats[arenaZone].won + 1
-				else
+				elseif( playerWon == "nil" ) then
 					stats[teamID].lost = stats[teamID].lost + 1
 					mapStats[arenaZone].lost = mapStats[arenaZone].lost + 1
 				end
-				
 
 				-- Match information
 				local matchTbl = {
 					zone = arenaZone,
 					time = tonumber(endTime) or 0,
 					runTime = tonumber(runTime) or 0,
-					won = (playerWon == "true"),
+					won = (playerWon == "true" or playerWon == "1"),
+					draw = (playerWon == "0"),
+					guessTalents = (guessTalents == "true"),
 					teamID = teamID,
 					recordID = id,
 					
@@ -491,7 +469,7 @@ local function updateCache()
 	table.sort(history, sortHistory)
 end
 
-local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName)
+local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, teamID)
 	for i=1, MAX_TEAM_MEMBERS do
 		local row = teamRows[i]
 		local data = teamData[i]
@@ -520,14 +498,20 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName)
 					data.race = race
 				end
 			end
-						
+			
+			-- Custom data
+			row.specIcon.bracket = GUI.frame.bracket
+			row.specIcon.teamName = teamName
+			row.specIcon.name = data.name
+			
+			row.raceIcon.bracket = GUI.frame.bracket
+			row.raceIcon.teamName = teamName
+			row.raceIcon.name = data.name
+			
 			-- Spec icon
 			if( data.spec and data.spec ~= "" ) then
 				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec)
 				row.specIcon.tooltip = tooltip
-				row.specIcon.bracket = GUI.frame.bracket
-				row.specIcon.teamName = teamName
-				row.specIcon.name = data.name
 				row.specIcon.classToken = data.classToken
 				row.specIcon.spec = data.spec
 				row.specIcon:SetNormalTexture("Interface\\Icons\\" .. icon)
@@ -542,9 +526,6 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName)
 			if( RACE_ICONS[data.race] ) then
 				local coords = RACE_ICONS[data.race]
 				row.raceIcon.tooltip = L[data.race] or L["Unknown"]
-				row.raceIcon.bracket = GUI.frame.bracket
-				row.raceIcon.teamName = teamName
-				row.raceIcon.name = data.name
 				row.raceIcon.race = data.race
 				row.raceIcon:SetNormalTexture("Interface\\Glues\\CharacterCreate\\UI-CharacterCreate-Races")
 				row.raceIcon:GetNormalTexture():SetTexCoord(coords[1], coords[2], coords[3], coords[4])
@@ -632,7 +613,9 @@ local function updateRecords()
 				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.teamID)
 
 				-- Green border if we won, red if we lost
-				if( matchInfo.won ) then
+				if( matchInfo.draw ) then
+					row:SetBackdropBorderColor(0.85, 0.71, 0.26, 1.0)
+				elseif( matchInfo.won ) then
 					row:SetBackdropBorderColor(0.0, 1.0, 0.0, 1.0)
 				else
 					row:SetBackdropBorderColor(1.0, 0.0, 0.0, 1.0)
@@ -689,7 +672,17 @@ local function updateFilters()
 			if( matchInfo.eRating >= filters.minRate and matchInfo.eRating <= filters.maxRate ) then
 				-- Check if we should filter this zone
 				if( filters[matchInfo.zone] ) then
-					matchInfo.hidden = nil
+					-- Check if we have someone on this team with the same name
+					if( filters.playerName ) then
+						for _, data in pairs(matchInfo.enemyTeam) do
+							if( string.match(string.lower(data.name), filters.playerName)) then
+								matchInfo.hidden = nil
+							end
+						end
+					
+					else
+						matchInfo.hidden = nil
+					end
 				end
 			end
 		end
@@ -730,6 +723,21 @@ local function searchName(self)
 	
 	if( text ~= filters.teamName ) then
 		filters.teamName = text
+
+		updateFilters()
+		updateRecords()
+	end
+end
+
+local function searchEnemyName(self)
+	local filters = GUI.frame.filters
+	local text = string.lower(self:GetText() or "")
+	if( text == "" or self.searchText) then
+		text = nil
+	end
+	
+	if( text ~= filters.playerName ) then
+		filters.playerName = text
 
 		updateFilters()
 		updateRecords()
@@ -779,11 +787,19 @@ local function setShownBracket(self)
 	if( GUI.bracket ~= self.bracket ) then
 		GUI.bracket = self.bracket
 		GUI.frame.bracket = self.bracket
+		ArenaHistorian.db.profile.lastBracket = self.bracket
 		
 		updateCache()
 		updateFilters()
 		updateRecords()
 	end
+end
+
+-- Move this down here for when we modify stuff
+function GUI:RefreshView()
+	updateCache()
+	updateFilters()
+	updateRecords()
 end
 
 -- Delete something
@@ -955,7 +971,7 @@ function GUI:CreateFrame()
 
 	-- Create the main window
 	self.frame = CreateFrame("Frame", "ArenaHistorianFrame", UIParent)
-	self.frame.bracket = 2
+	self.frame.bracket = ArenaHistorian.db.profile.lastBracket
 	self.frame:Hide()
 	self.frame:SetScript("OnShow", function()
 		updateCache()
@@ -1041,7 +1057,7 @@ function GUI:CreateFrame()
 	-- Create the tab frame
 	self.tabFrame = CreateFrame("Frame", nil, self.frame)
 	self.tabFrame:SetHeight(440)
-	self.tabFrame:SetWidth(130)
+	self.tabFrame:SetWidth(140)
 	self.tabFrame:SetBackdrop(backdrop)
 	self.tabFrame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
 	self.tabFrame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
@@ -1082,33 +1098,69 @@ function GUI:CreateFrame()
 	self.tabFrame.browsing = text
 	
 	-- MAP STATS
+	local FILTER_TEXT_X = 1
+	local FILTER_TEXT_Y = -17
+	
 	-- Blade's Edge Arena
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Blade's Edge Arena"])
-	text:SetPoint("TOPLEFT", browsingText, "TOPLEFT", 0, -30)
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = "BEA"
+	filter:SetScript("OnClick", searchZone)
+	filter:SetScript("OnHide", resetCheck)
+	filter:SetPoint("TOPLEFT", browsingText, "TOPLEFT", -2, -30)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Blade's Edge Arena"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.BEAFilter = filter
 
 	local BEA = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	BEA:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	BEA:SetPoint("TOPLEFT", filter, "TOPLEFT", FILTER_TEXT_X, FILTER_TEXT_Y)
 	
 	self.tabFrame.BEA = BEA
 
 	-- Nagrand Arena
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Nagrand Arena"])
-	text:SetPoint("TOPLEFT", BEA, "TOPLEFT", 0, -16)
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = "NA"
+	filter:SetScript("OnClick", searchZone)
+	filter:SetScript("OnHide", resetCheck)
+	filter:SetPoint("TOPLEFT", self.tabFrame.BEA, "TOPLEFT", -FILTER_TEXT_X, -15)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Nagrand Arena"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.NAFilter = filter
 
 	local NA = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	NA:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	NA:SetPoint("TOPLEFT", filter, "TOPLEFT", FILTER_TEXT_X, FILTER_TEXT_Y)
 	
 	self.tabFrame.NA = NA
 
 	-- Ruins of Lordaeron
-	local text = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	text:SetText(L["Ruins of Lordaeron"])
-	text:SetPoint("TOPLEFT", NA, "TOPLEFT", 0, -16)
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = "RoL"
+	filter:SetScript("OnClick", searchZone)
+	filter:SetScript("OnHide", resetCheck)
+	filter:SetPoint("TOPLEFT", self.tabFrame.NA, "TOPLEFT", -FILTER_TEXT_X, -16)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Ruins of Lordaeron"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.RoLFilter = filter
 
 	local RoL = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	RoL:SetPoint("TOPLEFT", text, "TOPLEFT", 0, -12)
+	RoL:SetPoint("TOPLEFT", filter, "TOPLEFT", FILTER_TEXT_X, FILTER_TEXT_Y)
 	
 	self.tabFrame.RoL = RoL
 
@@ -1116,7 +1168,7 @@ function GUI:CreateFrame()
 	-- TEAM NAME SEARCH
 	local search = CreateFrame("EditBox", "AHTeamNameSearch", self.tabFrame, "InputBoxTemplate")
 	search:SetHeight(19)
-	search:SetWidth(122)
+	search:SetWidth(132)
 	search:SetAutoFocus(false)
 	search:ClearAllPoints()
 	search:SetPoint("CENTER", self.tabFrame, "BOTTOM", 2, 11)
@@ -1135,15 +1187,40 @@ function GUI:CreateFrame()
 	local label = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	label:SetText(L["Enemy team name"])
 	label:SetPoint("TOPLEFT", search, "TOPLEFT", -2, 12)
+
+	-- ENEMY NAME SEARCH
+	local search = CreateFrame("EditBox", "AHNameEnemySearch", self.tabFrame, "InputBoxTemplate")
+	search:SetHeight(19)
+	search:SetWidth(132)
+	search:SetAutoFocus(false)
+	search:ClearAllPoints()
+	search:SetPoint("CENTER", self.tabFrame, "BOTTOM", 2, 47)
+
+	search.searchText = true
+	search.defaultText = L["Search"]
+	search:SetText(L["Search"])
+	search:SetTextColor(0.90, 0.90, 0.90, 0.80)
+	search:SetScript("OnTextChanged", searchEnemyName)
+	search:SetScript("OnEditFocusGained", searchFocusGained)
+	search:SetScript("OnEditFocusLost", searchFocusLost)
+	search:SetScript("OnHide", resetSearch)
+	
+	self.tabFrame.enemyName = search
+
+	local label = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	label:SetText(L["Enemy player name"])
+	label:SetPoint("TOPLEFT", search, "TOPLEFT", -2, 12)
 	
 	-- MIN RATING
+	local RATING_Y = 82
+	
 	local minRating = CreateFrame("EditBox", "AHTeamMinRating", self.tabFrame, "InputBoxTemplate")
 	minRating:SetHeight(19)
 	minRating:SetWidth(50)
 	minRating:SetAutoFocus(false)
 	minRating:SetNumeric(true)
 	minRating:ClearAllPoints()
-	minRating:SetPoint("CENTER", self.tabFrame, "BOTTOM", -33, 50)
+	minRating:SetPoint("CENTER", self.tabFrame, "BOTTOM", -38, RATING_Y)
 	
 	minRating.searchText = true
 	minRating.defaultText = 0
@@ -1167,7 +1244,7 @@ function GUI:CreateFrame()
 	maxRating:SetAutoFocus(false)
 	maxRating:SetNumeric(true)
 	maxRating:ClearAllPoints()
-	maxRating:SetPoint("CENTER", self.tabFrame, "BOTTOM", 38, 50)
+	maxRating:SetPoint("CENTER", self.tabFrame, "BOTTOM", 42, RATING_Y)
 	
 	maxRating.searchText = true
 	maxRating.defaultText = 3000
@@ -1184,58 +1261,12 @@ function GUI:CreateFrame()
 	label:SetText(L["Max rate"])
 	label:SetPoint("TOPLEFT", maxRating, "TOPLEFT", -3, 12)
 	
-	-- ZONE FILTERS
-	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
-	filter:SetHeight(18)
-	filter:SetWidth(18)
-	filter:SetChecked(true)
-	filter.type = "BEA"
-	filter:SetScript("OnClick", searchZone)
-	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("CENTER", self.tabFrame, "BOTTOM", -55, 120)
-	
-	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Blade's Edge Arena"])
-	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
-	
-	self.tabFrame.BEAFilter = filter
-
-	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
-	filter:SetHeight(18)
-	filter:SetWidth(18)
-	filter:SetChecked(true)
-	filter.type = "NA"
-	filter:SetScript("OnClick", searchZone)
-	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("TOPLEFT", self.tabFrame.BEAFilter, "TOPLEFT", 0, -15)
-	
-	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Nagrand Arena"])
-	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
-	
-	self.tabFrame.NAFilter = filter
-
-	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
-	filter:SetHeight(18)
-	filter:SetWidth(18)
-	filter:SetChecked(true)
-	filter.type = "RoL"
-	filter:SetScript("OnClick", searchZone)
-	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("TOPLEFT", self.tabFrame.NAFilter, "TOPLEFT", 0, -15)
-	
-	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Ruins of Lordaeron"])
-	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
-	
-	self.tabFrame.RoLFilter = filter
-
 	-- Create the display buttons
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownBracket)
-	tab:SetWidth(122)
+	tab:SetWidth(132)
 	tab:SetHeight(13)
 	tab:SetText(L["Show 2vs2"])
 	tab:SetPoint("CENTER", self.tabFrame, "TOP", 0, -15)
@@ -1245,7 +1276,7 @@ function GUI:CreateFrame()
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownBracket)
-	tab:SetWidth(122)
+	tab:SetWidth(132)
 	tab:SetHeight(13)
 	tab:SetText(L["Show 3vs3"])
 	tab:SetPoint("CENTER", self.tabFrame, "TOP", 0, -30)
@@ -1255,7 +1286,7 @@ function GUI:CreateFrame()
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownBracket)
-	tab:SetWidth(122)
+	tab:SetWidth(132)
 	tab:SetHeight(13)
 	tab:SetText(L["Show 5vs5"])
 	tab:SetPoint("CENTER", self.tabFrame, "TOP", 0, -45)

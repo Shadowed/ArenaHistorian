@@ -5,13 +5,15 @@
 ## Notes: Rated arena records
 ## SavedVariables: ArenaHistorianDB
 ## SavedVariablesPerCharacter: ArenaHistoryCustomData, ArenaHistoryData
-## OptionalDeps: LibStub, OptionHouse, HousingAuthority
+## OptionalDeps: LibStub, Ace3, TalentGuess-1.0, OptionHouse, HousingAuthority
 
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
 lib\AceAddon-3.0\AceAddon-3.0.xml
 lib\AceDB-3.0\AceDB-3.0.xml
+lib\AceComm-3.0\AceComm-3.0.xml
 lib\AceEvent-3.0\AceEvent-3.0.xml
+lib\TalentGuess-1.0\TalentGuess-1.0.xml
 lib\OptionHouse.lua
 lib\HousingAuthority.lua
 
@@ -20,5 +22,6 @@ localization.deDE.lua
 localization.frFR.lua
 
 ArenaHistorian.lua
+sync.lua
 gui.lua
 config.lua
