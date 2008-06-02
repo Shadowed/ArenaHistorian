@@ -1,9 +1,7 @@
 local Config = ArenaHistorian:NewModule("Config")
 local L = ArenaHistLocals
 
-local OptionHouse
-local HouseAuthority
-local OHObj
+local optionFrame, options
 
 function Config:OnInitialize()
 	-- Random things
@@ -18,7 +16,7 @@ function Config:OnInitialize()
 			ArenaHistorian.modules.GUI:CreateFrame()
 			ArenaHistorian.modules.GUI.frame:Show()
 		elseif( msg == "config" ) then
-			OptionHouse:Open("Arena Historian")
+			InterfaceOptionsFrame_OpenToFrame(optionFrame)
 		elseif( msg == "sync" ) then
 			ArenaHistorian.modules.Sync.CreateGUI()
 			ArenaHistorian.modules.Sync.frame:Show()
@@ -31,37 +29,92 @@ function Config:OnInitialize()
 		end
 	end
 	
-	-- Register with OptionHouse
-	OptionHouse = LibStub("OptionHouse-1.1")
-	HouseAuthority = LibStub("HousingAuthority-1.2")
-	
-	OHObj = OptionHouse:RegisterAddOn("Arena Historian", nil, "Mayen", "r" .. max(tonumber(string.match("$Revision$", "(%d+)")) or 1, ArenaHistorian.revision))
-	OHObj:RegisterCategory(L["General"], self, "CreateUI", nil, 1)
-end
 
-
--- GUI
-function Config:Set(var, value)
-	ArenaHistorian.db.profile[var] = value
-end
-
-function Config:Get(var)
-	return ArenaHistorian.db.profile[var]
+	LibStub("AceConfigRegistry-3.0"):RegisterOptionsTable("ArenaHistorian", self.CreateUI)
+	optionFrame = LibStub("AceConfigDialog-3.0"):AddToBlizOptions("ArenaHistorian")
 end
 
 function Config:CreateUI()
-	local currentDate = date("%c", time())
+	if( options ) then
+		return options
+	end
 
-	local config = {
-		{ group = L["General"], type = "groupOrder", order = 1 },
-		{ order = 0, group = L["General"], text = L["Enable talent guess"], help = L["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."], type = "check", var = "enableGuess"},
+	local self = ArenaHistorian
+	local get = function(info)
+		return self.db.profile[info[#(info)]]
+	end
+	local set = function(info, value)
+		self.db.profile[info[#(info)]] = value
+	end
+	local setNumber = function(info, value)
+		self.db.profile[info[#(info)]] = tonumber(value)
+	end
+	local disabled = function(info)
+		if( info[#(info)] == "maxRecords" ) then
+			return not self.db.profile.enableMax
+		elseif( info[#(info)] == "maxWeeks" ) then
+			return not self.db.profile.enableWeek
+		end
+	end
 
-		{ order = 1, group = L["General"], text = L["Enable maximum records"], help = L["Enables only storing the last X entered records."], type = "check", var = "enableMax"},
-		{ order = 2, group = L["General"], text = L["Maximum saved records"], help = L["How many records to save per a bracket, for example if you set it to 10 then you'll only keep the last 10 matches for each bracket, older records are overwritten by newer ones."], type = "input", numeric = true, default = 5, width = 30, var = "maxRecords"},
-
-		{ order = 3, group = L["General"], text = L["Enable week records"], help = L["Enables removing records that are over X weeks old."], type = "check", var = "enableWeek"},
-		{ order = 4, group = L["General"], text = L["How many weeks to save records"], help = string.format(L["Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s"], currentDate), type = "input", numeric = true, default = 5, width = 30, var = "maxWeeks"},
+	local options = {
+		name = "Arena Historian",
+		type = "group",
+		get = get,
+		set = set,
+		handler = self,
+		args = {
+			enableGuess = {
+				order = 1,
+				type = "toggle",
+				name = L["Enable talent guessing"],
+				desc = L["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."],
+				width = "full",
+			},
+			retention = {
+				order = 2,
+				type = "group",
+				name = L["Data retention"],
+				desc = L["Allows you to set how long data should be saved before being removed."],
+				dialogInline = true,
+				args = {
+					enableMax = {
+						order = 1,
+						type = "toggle",
+						name = L["Enable maximum records"],
+						desc = L["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."],
+						width = "full",
+					},
+					maxRecords = {
+						order = 2,
+						type = "range",
+						name = L["Maximum saved records"],
+						desc = L["How many records to save per a bracket, for example if you set it to 10 then you'll only keep the last 10 matches for each bracket, older records are overwritten by newer ones."],
+						min = 1, max = 1000, step = 1,
+						set = setNumber,
+						disabled = disabled,
+						width = "full",
+					},
+					enableWeek = {
+						order = 3,
+						type = "toggle",
+						name = L["Enable week records"],
+						width = "full",
+					},
+					maxWeeks = {
+						order = 4,
+						type = "range",
+						name = L["How many weeks to save records"],
+						desc = string.format(L["Weeks that data should be saved before it's deleted, this is weeks from the day the record was saved.\nTime: %s"], date("%c")),
+						min = 1, max = 52, step = 1,
+						set = setNumber,
+						disabled = disabled,
+						width = "full",
+					},
+				},
+			},
+		},
 	}
 
-	return HouseAuthority:CreateConfiguration(config, {set = "Set", get = "Get", handler = self})	
+	return options
 end

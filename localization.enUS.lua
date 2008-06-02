@@ -149,4 +149,6 @@ ArenaHistLocals = {
 	
 	["Enter the talent points spent in each tree for %s from %s."] = "Enter the talent points spent in each tree for %s from %s.",
 	
+	["Data retention"] = "Data retention",
+	["Allows you to set how long data should be saved before being removed."] = "Allows you to set how long data should be saved before being removed.",
 }
