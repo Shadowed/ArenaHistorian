@@ -36,7 +36,7 @@ local TREE_ICONS = {
 	["PRIEST"] = {"Spell_Holy_WordFortitude", "Spell_Holy_HolyBolt", "Spell_Shadow_ShadowWordPain"},
 }
 
-function GUI:GetSpecName(class, spec)
+function GUI:GetSpecName(class, spec, isGuess, isCustom)
 	local tree1, tree2, tree3 = string.split("/", spec)
 	tree1 = tonumber(tree1) or 0
 	tree2 = tonumber(tree2) or 0
@@ -45,6 +45,17 @@ function GUI:GetSpecName(class, spec)
 	if( tree1 == 0 and tree2 == 0 and tree3 == 0 ) then
 		return "INV_Misc_QuestionMark", L["Unknown"]
 	end
+	
+	--[[
+	if( not isCustom and isGuess ) then
+		local one, two, three = ArenaHistorian.talents:GetFullGuess(tree1, tree2, tree3, class)
+		if( one and two and three ) then
+			tree1 = one
+			tree2 = two
+			tree3 = three
+		end
+	end
+	]]
 	
 	-- Check for a hybrid spec
 	local deepTrees = 0
@@ -365,12 +376,13 @@ end
 local function parseTeamData(...)
 	local teamData = {}
 	for i=1, select("#", ...) do
-		local name, spec, classToken, race, healingDone, damageDone = string.split(",", (select(i, ...)))
+		local name, spec, classToken, race, healingDone, damageDone, guessTalents = string.split(",", (select(i, ...)))
 		
 		local row = {
 			name = name,
 			race = race,
 			classToken = classToken,
+			guessTalents = (guessTalents == "true"),
 			spec = (spec ~= "" and spec or nil),
 			healingDone = tonumber(healingDone) or 0,
 			damageDone = tonumber(damageDone) or 0,
@@ -410,7 +422,7 @@ local function updateCache()
 			
 			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
-				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, guessTalents = string.split(":", matchData)
+				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange = string.split(":", matchData)
 				
 				-- Generate the player and enemy team mate info
 				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
@@ -433,7 +445,7 @@ local function updateCache()
 				if( playerWon == "true" or playerWon == "1" ) then
 					stats[teamID].won = stats[teamID].won + 1
 					mapStats[arenaZone].won = mapStats[arenaZone].won + 1
-				elseif( playerWon == "nil" ) then
+				elseif( playerWon == "nil" or playerWon == "-1" ) then
 					stats[teamID].lost = stats[teamID].lost + 1
 					mapStats[arenaZone].lost = mapStats[arenaZone].lost + 1
 				end
@@ -445,7 +457,6 @@ local function updateCache()
 					runTime = tonumber(runTime) or 0,
 					won = (playerWon == "true" or playerWon == "1"),
 					draw = (playerWon == "0"),
-					guessTalents = (guessTalents == "true"),
 					teamID = teamID,
 					recordID = id,
 					
@@ -487,11 +498,13 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 			
 			-- Check if we should override our saved data with custom data
 			local id = GUI.frame.bracket .. teamName .. data.name
+			local isCustom
 			if( ArenaHistoryCustomData[id] ) then
 				local talents, race = string.split(":", ArenaHistoryCustomData[id])
 				
 				if( talents ~= "" ) then
 					data.spec = talents
+					isCustom = true
 				end
 				
 				if( race ~= "" ) then
@@ -510,7 +523,7 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 			
 			-- Spec icon
 			if( data.spec and data.spec ~= "" ) then
-				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec)
+				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec, data.guessTalents, isCustom)
 				row.specIcon.tooltip = tooltip
 				row.specIcon.classToken = data.classToken
 				row.specIcon.spec = data.spec

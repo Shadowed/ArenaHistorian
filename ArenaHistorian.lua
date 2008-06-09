@@ -96,151 +96,154 @@ end
 
 -- Record new data
 function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
-	if( GetBattlefieldWinner() ) then
-		-- Figure out what bracket we're in
-		local bracket
-		for i=1, MAX_BATTLEFIELD_QUEUES do
-			local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
-			if( status == "active" ) then
-				bracket = teamSize
-				break
-			end
-		end
-		
-		-- Failed (bad)
-		if( not bracket ) then
-			return
-		end
-		
-		-- Resave list of player teams
-		for i=1, MAX_ARENA_TEAMS do
-			local teamName, teamSize = GetArenaTeam(i)
-			if( teamName and teamSize ) then
-				arenaTeams[teamName .. teamSize] = true
-			end
-		end
-		
-		-- Record rating/team names
-		local playerIndex, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
-		local playerWon = -1
-		
-		for i=0, 1 do
-			local teamName, oldRating, newRating = GetBattlefieldTeamInfo(i)
-			if( arenaTeams[teamName .. bracket] ) then
-				playerName = teamName
-				playerRating = newRating
-				playerChange = newRating - oldRating
-				
-				if( GetBattlefieldWinner() == i ) then
-					playerWon = 1
-				end
-				
-				playerIndex = i
-			else
-				enemyName = teamName
-				enemyRating = newRating
-				enemyChange = newRating - oldRating
-			end
-		end
-		
-		-- Couldn't find player team data
-		if( not playerName or not playerIndex ) then
-			return
-		end
-
-		-- Check for draw game
-		if( not GetBattlefieldTeamInfo(GetBattlefieldWinner()) ) then
-			playerWon = 0
-		end
-		
-		-- Score data
-		local playerData = {}
-		local enemyData = {}
-		for i=1, GetNumBattlefieldScores() do
-			local name, _, _, _, _, faction, _, race, class, classToken, damageDone, healingDone = GetBattlefieldScore(i)
-			
-			local server, parseName
-			if( string.match(name, "-") ) then
-				parseName, server = string.match(name, "(.-)%-(.*)$")
-			else
-				server = GetRealmName()	
-				parseName = name
-			end
-
-			-- Grab talent data if we have it available
-			local spec = ""
-			local guessTalents = false
-						
-			-- We don't have to inspect ourself to get info, it's always available
-			if( name == UnitName("player") ) then
-				local firstPoints = select(3, GetTalentTabInfo(1)) or 0
-				local secondPoints = select(3, GetTalentTabInfo(2)) or 0
-				local thirdPoints = select(3, GetTalentTabInfo(3)) or 0
-				
-				spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-								
-				if( UnitSex("player") == 2 ) then
-					playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_MALE" 
-				else
-					playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_FEMALE"
-				end
-			
-			-- Group member data
-			elseif( friendlyTalentData[name] ) then
-				spec = friendlyTalentData[name]
-				
-			-- See if we have custom data on them
-			elseif( faction ~= playerIndex ) then
-				local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(name)
-				if( firstPoints and secondPoints and thirdPoints ) then
-					spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-					guessTalents = true
-				end
-			end
-			
-			-- Add it to the team list
-			local data = string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone)
-			if( faction == playerIndex ) then
-				table.insert(playerData, data)
-			else
-				table.insert(enemyData, data)
-			end
-		end
-		
-		-- Bugged game, this isn't really the best way of doing it though, but it works
-		if( #(enemyData) == 0 or #(playerData) == 0 ) then
-			return
-		end
-		
-		-- Save player information
-		--[[
-			First set of name/class/race/spec are the players team, second set are enemy
-			
-			<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>
-			
-			[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;isGuessTalents;<player team mates>;<enemy team mates>"
-		]]
-		
-		-- Translate localized zone text to an unlocalized version
-		local zoneText = GetRealZoneText() or ""
-		if( zoneText == L["Blade's Edge Arena"] ) then
-			zoneText = "BEA"
-		elseif( zoneText == L["Nagrand Arena"] ) then
-			zoneText = "NA"
-		elseif( zoneText == L["Ruins of Lordaeron"] ) then
-			zoneText = "RoL"
-		else
-			zoneText = nil
-		end
-		
-		local runTime = GetBattlefieldInstanceRunTime() or 0
-		local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-		local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d:%s;%s;%s", zoneText, bracket, runTime, tostring(playerWon), playerRating, playerChange, enemyRating, enemyChange, tostring(guessTalents), table.concat(playerData, ":"), table.concat(enemyData, ":"))
-		
-		-- Save
-		ArenaHistoryData[bracket][index] = data
-		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
+	if( not GetBattlefieldWinner() ) then
+		return
 	end
+	
+	self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
+
+	-- Figure out what bracket we're in
+	local bracket
+	for i=1, MAX_BATTLEFIELD_QUEUES do
+		local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
+		if( status == "active" ) then
+			bracket = teamSize
+			break
+		end
+	end
+
+	-- Failed (bad)
+	if( not bracket ) then
+		return
+	end
+
+	-- Resave list of player teams
+	for i=1, MAX_ARENA_TEAMS do
+		local teamName, teamSize = GetArenaTeam(i)
+		if( teamName and teamSize ) then
+			arenaTeams[teamName .. teamSize] = true
+		end
+	end
+
+	-- Record rating/team names
+	local playerIndex, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
+	local playerWon = -1
+
+	for i=0, 1 do
+		local teamName, oldRating, newRating = GetBattlefieldTeamInfo(i)
+		if( arenaTeams[teamName .. bracket] ) then
+			playerName = teamName
+			playerRating = newRating
+			playerChange = newRating - oldRating
+
+			if( GetBattlefieldWinner() == i ) then
+				playerWon = 1
+			end
+
+			playerIndex = i
+		else
+			enemyName = teamName
+			enemyRating = newRating
+			enemyChange = newRating - oldRating
+		end
+	end
+
+	-- Couldn't find player team data
+	if( not playerName or not playerIndex ) then
+		return
+	end
+
+	-- Check for draw game
+	if( not GetBattlefieldTeamInfo(GetBattlefieldWinner()) ) then
+		playerWon = 0
+	end
+
+	-- Score data
+	local playerData = {}
+	local enemyData = {}
+	for i=1, GetNumBattlefieldScores() do
+		local name, _, _, _, _, faction, _, race, class, classToken, damageDone, healingDone = GetBattlefieldScore(i)
+
+		local server, parseName
+		if( string.match(name, "-") ) then
+			parseName, server = string.match(name, "(.-)%-(.*)$")
+		else
+			server = GetRealmName()	
+			parseName = name
+		end
+
+		-- Grab talent data if we have it available
+		local spec = ""
+		local guessTalents = false
+
+		-- We don't have to inspect ourself to get info, it's always available
+		if( name == UnitName("player") ) then
+			local firstPoints = select(3, GetTalentTabInfo(1)) or 0
+			local secondPoints = select(3, GetTalentTabInfo(2)) or 0
+			local thirdPoints = select(3, GetTalentTabInfo(3)) or 0
+
+			spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
+
+			if( UnitSex("player") == 2 ) then
+				playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_MALE" 
+			else
+				playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_FEMALE"
+			end
+
+		-- Group member data
+		elseif( friendlyTalentData[name] ) then
+			spec = friendlyTalentData[name]
+
+		-- See if we have custom data on them
+		elseif( faction ~= playerIndex ) then
+			local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(name)
+			if( firstPoints and secondPoints and thirdPoints ) then
+				spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
+				guessTalents = true
+			end
+		end
+
+		-- Add it to the team list
+		local data = string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone, tostring(guessTalents))
+		if( faction == playerIndex ) then
+			table.insert(playerData, data)
+		else
+			table.insert(enemyData, data)
+		end
+	end
+
+	-- Bugged game, this isn't really the best way of doing it though, but it works
+	if( #(enemyData) == 0 or #(playerData) == 0 ) then
+		return
+	end
+
+	-- Save player information
+	--[[
+		First set of name/class/race/spec are the players team, second set are enemy
+
+		<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>
+
+		[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;isGuessTalents;<player team mates>;<enemy team mates>"
+	]]
+
+	-- Translate localized zone text to an unlocalized version
+	local zoneText = GetRealZoneText()
+	if( zoneText == L["Blade's Edge Arena"] ) then
+		zoneText = "BEA"
+	elseif( zoneText == L["Nagrand Arena"] ) then
+		zoneText = "NA"
+	elseif( zoneText == L["Ruins of Lordaeron"] ) then
+		zoneText = "RoL"
+	else
+		zoneText = ""
+	end
+
+	local runTime = GetBattlefieldInstanceRunTime() or 0
+	local index = string.format("%d::%s::%s", time(), playerName, enemyName)
+	local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, playerWon, playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+
+	-- Save
+	ArenaHistoryData[bracket][index] = data
 end
 
 -- Get enemy/team mate races
@@ -279,7 +282,7 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	self:CheckArenaReset()
 
 	local type = select(2, IsInInstance())
-
+	
 	-- Inside an arena, but wasn't already
 	if( type == "arena" and type ~= instanceType and select(2, IsActiveBattlefieldArena()) ) then
 		self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
@@ -316,7 +319,7 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 			self.talents:EnableCollection()
 		end
 		
-		mobEnabled = true
+		modEnabled = true
 
 	-- Was in an arena, but left it
 	elseif( type ~= "arena" and instanceType == "arena" and modEnabled ) then
