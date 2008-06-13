@@ -237,7 +237,7 @@ local COMBATLOG_OBJECT_TYPE_PLAYER = COMBATLOG_OBJECT_TYPE_PLAYER
 local COMBATLOG_OBJECT_REACTION_HOSTILE	= COMBATLOG_OBJECT_REACTION_HOSTILE
 local ENEMY_AFFILIATION = bit.bor(COMBATLOG_OBJECT_REACTION_HOSTILE, COMBATLOG_OBJECT_TYPE_PLAYER)
 
-local eventRegistered = {["SPELL_AURA_APPLIED"] = true, ["SPELL_ENERGIZE"] = true, ["SPELL_CAST_SUCCESS"] = true, ["SPELL_CAST_START"] = true}
+local eventRegistered = {["SPELL_AURA_APPLIED"] = true, ["SPELL_ENERGIZE"] = true, ["SPELL_HEAL"] = true, ["SPELL_SUMMON"] = true, ["SPELL_CAST_SUCCESS"] = true, ["SPELL_CAST_START"] = true}
 local function COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, sourceName, sourceFlags, destGUID, destName, destFlags, ...)
 	if( not eventRegistered[eventType] ) then
 		return
@@ -253,11 +253,24 @@ local function COMBAT_LOG_EVENT_UNFILTERED(timestamp, eventType, sourceGUID, sou
 	-- Energized through something
 	elseif( eventType == "SPELL_ENERGIZE" and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
 		local spellID, spellName, spellSchool, amount, powerType = ...
-		
 		if( Talents.spells[spellID] ) then
 			addSpell(spellID, sourceGUID, sourceName)
 		end
 	
+	-- Totem summoned
+	elseif( eventType == "SPELL_SUMMON" and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
+		local spellID, spellName, spellSchool = ...
+		if( Talents.spells[spellID] ) then
+			addSpell(spellID, sourceGUID, sourceName)
+		end
+	
+	-- Heal
+	elseif( eventType == "SPELL_HEAL" and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
+		local spellID, spellName, spellSchool = ...
+		if( Talents.spells[spellID] ) then
+			addSpell(spellID, sourceGUID, sourceName)
+		end
+
 	-- Spell started to cast
 	elseif( eventType == "SPELL_CAST_START"  and bit.band(sourceFlags, ENEMY_AFFILIATION) == ENEMY_AFFILIATION ) then
 		local spellID, spellName, spellSchool, auraType = ...

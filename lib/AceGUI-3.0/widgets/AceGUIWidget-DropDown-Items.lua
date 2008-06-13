@@ -1,4 +1,4 @@
---[[ $Id: AceGUIWidget-DropDown-Items.lua 74633 2008-05-21 08:20:50Z nevcairiel $ ]]--
+--[[ $Id: AceGUIWidget-DropDown-Items.lua 76326 2008-06-09 09:29:17Z nevcairiel $ ]]--
 
 local AceGUI = LibStub("AceGUI-3.0")
 
@@ -310,7 +310,7 @@ end
 -- Does not close the pullout on click.
 do
 	local widgetType = "Dropdown-Item-Toggle"
-	local widgetVersion = 1
+	local widgetVersion = 2
 	
 	local function UpdateToggle(self)
 		if self.value then
@@ -318,6 +318,11 @@ do
 		else
 			self.check:Hide()
 		end
+	end
+	
+	local function OnRelease(self)
+		ItemBase.OnRelease(self)
+		self:SetValue(nil)
 	end
 	
 	local function Frame_OnClick(this, button)
@@ -334,12 +339,19 @@ do
 		UpdateToggle(self)
 	end
 	
+	-- exported
+	local function GetValue(self)
+		return self.value
+	end
+	
 	local function Constructor()
 		local self = ItemBase.Create(widgetType)
 		
 		self.frame:SetScript("OnClick", Frame_OnClick)
 		
 		self.SetValue = SetValue
+		self.GetValue = GetValue
+		self.OnRelease = OnRelease
 		
 		AceGUI:RegisterAsWidget(self)
 		return self
