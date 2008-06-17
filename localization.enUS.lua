@@ -1,8 +1,8 @@
 ArenaHistLocals = {
 	["Arena Historian"] = "Arena Historian",
-	["Show 2vs2"] = "Show 2vs2",
-	["Show 3vs3"] = "Show 3vs3",
-	["Show 5vs5"] = "Show 5vs5",
+	
+	["%dvs%d History"] = "%dvs%d History",
+	["Stats"] = "Stats",
 	
 	["%d Rating (%d Points)"] = "%d Rating (%d Points)",
 	
@@ -10,6 +10,7 @@ ArenaHistLocals = {
 	["Record: %s/%s"] = "Record: %s/%s",
 	["Zone: %s"] = "Zone: %s",
 	["%s - Damage (%d) / Healing (%d)"] = "%s - Damage (%d) / Healing (%d)",
+	["Date: %s"] = "Date: %s",
 	
 	["Unknown"] = "Unknown",
 	["Arena Preparation"] = "Arena Preparation",
@@ -19,9 +20,13 @@ ArenaHistLocals = {
 	["Min rate"] = "Min rate",
 	["Max rate"] = "Max rate",
 	
-	["Total records"] = "Total records",
-	["Total visible"] = "Total visible",
-	["Browsing"] = "Browsing",
+	["Talents"] = "Talents",
+	["Classes"] = "Classes",
+	["Reset filters"] = "Reset filters",
+	
+	["%s's shown"] = "%s's shown",
+	["%s's hidden"] = "%s's hidden",
+	
 	["OK"] = "OK",
 	
 	["Male"] = "Male",
@@ -30,14 +35,13 @@ ArenaHistLocals = {
 	["Hold ALT and click the button to delete this arena record."] = "Hold ALT and click the button to delete this arena record.",
 
 	["The Arena battle has begun!"] = "The Arena battle has begun!",
-	
+		
 	-- Syncing
 	["Deny"] = "Deny",
 	["%s has requested missing data for %dvs%d, sync data?"] = "%s has requested missing data for %dvs%d, sync data?",
 	["Data Syncing"] = "Data Syncing",
 	["Sync"] = "Sync",
 	
-
 	["Waiting for sync to be sent"] = "Waiting for sync to be sent",
 
 	["Timed out, no data received"] = "Timed out, no data received",

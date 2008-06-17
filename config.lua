@@ -64,6 +64,7 @@ function Config:CreateUI()
 		set = set,
 		handler = self,
 		args = {
+			--[[
 			enableGuess = {
 				order = 1,
 				type = "toggle",
@@ -71,6 +72,7 @@ function Config:CreateUI()
 				desc = L["Stores what enemies cast during an arena match, then attempts to guess their talents based on the spells used, not 100% accurate but it gives a rough idea."],
 				width = "full",
 			},
+			]]
 			retention = {
 				order = 2,
 				type = "group",

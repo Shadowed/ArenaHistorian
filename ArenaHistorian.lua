@@ -19,26 +19,26 @@ function ArenaHistorian:OnInitialize()
 	-- Defaults
 	self.defaults = {
 		profile = {
-			enableGuess = true,
 			enableMax = false,
 			maxRecords = 5,
 			enableWeek = false,
 			maxWeeks = 4,
 			arenaPoints = 0,
 			lastBracket = 2,
+			lastType = "history",
 			
 			resets = {},
 		}
 	}
-	
+		
 	if( not ArenaHistoryData ) then
 		ArenaHistoryData = {[2] = {}, [3] = {}, [5] = {}}
 	end
-	
+
 	if( not ArenaHistoryCustomData ) then
 		ArenaHistoryCustomData = {}
 	end
-	
+
 	-- Prevents us from having to do 50 concats
 	for i=1, MAX_PARTY_MEMBERS do
 		partyMap[i] = "party" .. i .. "target"
@@ -50,15 +50,6 @@ function ArenaHistorian:OnInitialize()
 
 	-- Register the talent guessing lib
 	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
-	
-	-- Check for bugged games
-	for bracket, gameData in pairs(ArenaHistoryData) do
-		for id in pairs(gameData) do
-			if( not string.match(id, "([0-9]+)::(.+)::(.+)") ) then
-				ArenaHistoryData[bracket][id] = nil
-			end
-		end
-	end
 end
 
 function ArenaHistorian:OnEnable()
@@ -313,12 +304,9 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 		else
 			self.scanFrame:Show()
 		end
-		
+				
 		-- Enable talent module
-		if( self.db.profile.enableGuess ) then
-			self.talents:EnableCollection()
-		end
-		
+		self.talents:EnableCollection()
 		modEnabled = true
 
 	-- Was in an arena, but left it
