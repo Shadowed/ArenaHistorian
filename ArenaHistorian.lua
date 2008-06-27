@@ -5,16 +5,11 @@
 ArenaHistorian = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")
 
 local L = ArenaHistLocals
-local playerRaceInfo = {}
-local partyMap = {}
-local instanceType
-local arenaTeams = {}
-local alreadyInspected = {}
-local inspectQueue = {}
-local friendlyTalentData = {}
-local inspectedUnit
-local modEnabled
-local matchRecorded
+local playerRaceInfo, partyMap, arenaTeams = {}, {}, {}
+local inspectQueue, alreadyInspected, friendlyTalentData = {}, {}, {}
+local inspectedUnit, modEnabled, matchRecorded, instanceType
+
+local genderMap = {[1] = "FEMALE", [2] = "MALE", [3] = "FEMALE"}
 
 function ArenaHistorian:OnInitialize()
 	-- Defaults
@@ -31,7 +26,7 @@ function ArenaHistorian:OnInitialize()
 			resets = {},
 		}
 	}
-		
+	
 	if( not ArenaHistoryData ) then
 		ArenaHistoryData = {[2] = {}, [3] = {}, [5] = {}}
 	end
@@ -51,6 +46,9 @@ function ArenaHistorian:OnInitialize()
 
 	-- Register the talent guessing lib
 	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
+	
+	-- Set players race/sex
+	playerRaceInfo[UnitName("player")] = string.format("%s_%s", string.upper(select(2, UnitRace("player"))), genderMap[UnitSex("player")])
 end
 
 function ArenaHistorian:OnEnable()
@@ -64,8 +62,9 @@ function ArenaHistorian:OnEnable()
 end
 
 function ArenaHistorian:OnDisable()
-	self:UnregisterAllEvents()
 	instanceType = nil
+
+	self:UnregisterAllEvents()
 end
 
 function ArenaHistorian:CheckArenaReset()
@@ -154,6 +153,8 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 	-- Score data
 	local playerData = {}
 	local enemyData = {}
+	local enemyServer = ""
+	
 	for i=1, GetNumBattlefieldScores() do
 		local name, _, _, _, _, faction, _, race, class, classToken, damageDone, healingDone = GetBattlefieldScore(i)
 
@@ -167,7 +168,6 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 
 		-- Grab talent data if we have it available
 		local spec = ""
-		local guessTalents = false
 
 		-- We don't have to inspect ourself to get info, it's always available
 		if( name == UnitName("player") ) then
@@ -176,23 +176,18 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			local thirdPoints = select(3, GetTalentTabInfo(3)) or 0
 
 			spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-
-			if( UnitSex("player") == 2 ) then
-				playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_MALE" 
-			else
-				playerRaceInfo[name] = string.upper(select(2, UnitRace("player"))) .. "_FEMALE"
-			end
-
+			
 		-- Group member data
 		elseif( friendlyTalentData[name] ) then
 			spec = friendlyTalentData[name]
 
 		-- See if we have custom data on them
 		elseif( faction ~= playerIndex ) then
+			enemyServer = server
+			
 			local firstPoints, secondPoints, thirdPoints = self.talents:GetTalents(name)
 			if( firstPoints and secondPoints and thirdPoints ) then
 				spec = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-				guessTalents = true
 			end
 		end
 
@@ -216,7 +211,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 
 		<team mate> format is <name>,<spec>,<classToken>,<race>,<healing>,<damage>
 
-		[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>;isGuessTalents;<player team mates>;<enemy team mates>"
+		[<time>::<playerTeam>::<enemyTeam>] = "<zone>:<bracket>:<runtime>:<true/false>:<prating>:<pchange>:<erating>:<echange>:<eserver>:<pserver>;<player team mates>;<enemy team mates>"
 	]]
 
 	-- Translate localized zone text to an unlocalized version
@@ -233,7 +228,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 
 	local runTime = GetBattlefieldInstanceRunTime() or 0
 	local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-	local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d;%s;%s", zoneText, bracket, runTime, playerWon, playerRating, playerChange, enemyRating, enemyChange, table.concat(playerData, ":"), table.concat(enemyData, ":"))
+	local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d:%s:%s;%s;%s", zoneText, bracket, runTime, playerWon, playerRating, playerChange, enemyRating, enemyChange, enemyServer, GetRealmName(), table.concat(playerData, ":"), table.concat(enemyData, ":"))
 
 	-- Save
 	ArenaHistoryData[bracket][index] = data
@@ -255,11 +250,7 @@ function ArenaHistorian:ScanUnit(unit)
 			name = string.format("%s-%s", name, server)
 		end
 
-		if( UnitSex(unit) == 2 ) then
-			playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_MALE" 
-		else
-			playerRaceInfo[name] = string.upper(select(2, UnitRace(unit))) .. "_FEMALE"
-		end
+		playerRaceInfo[name] = string.format("%s_%s", string.upper(select(2, UnitRace(unit))), genderMap[UnitSex(unit)])
 	end
 end
 
@@ -331,6 +322,8 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 		for i=#(inspectQueue), 1, -1 do
 			table.remove(inspectQueue, i)
 		end
+		
+		for k in pairs(alreadyInspected) do alreadyInspected[k] = nil end
 
 		-- Disable talent module
 		self.talents:DisableCollection()
@@ -422,7 +415,7 @@ function ArenaHistorian:INSPECT_TALENT_READY()
 		local thirdPoints = select(3, GetTalentTabInfo(3, true)) or 0
 		
 		friendlyTalentData[name] = string.format("%d/%d/%d", firstPoints, secondPoints, thirdPoints)
-
+				
 		-- Remove them from queue
 		for i=#(inspectQueue), 1, -1 do
 			if( inspectQueue[i] == inspectedUnit ) then

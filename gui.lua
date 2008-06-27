@@ -467,7 +467,7 @@ local function updateCache()
 			
 			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
-				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange = string.split(":", matchData)
+				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, eServer, pServer = string.split(":", matchData)
 				
 				-- Generate the player and enemy team mate info
 				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
@@ -506,10 +506,12 @@ local function updateCache()
 					recordID = id,
 					
 					pTeamName = playerTeamName,
+					pServer = pServer ~= "" and pServer or nil,
 					pRating = tonumber(pRating) or 0,
 					pChange = tonumber(pChange) or 0,
 					
 					eTeamName = enemyTeamName,
+					eServer = eServer ~= "" and eSever or nil,
 					eRating = tonumber(eRating) or 0,
 					eChange = tonumber(eChange) or 0,
 					

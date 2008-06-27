@@ -13,6 +13,11 @@ function Sync:OnInitialize()
 	notPlaying = string.format(ERR_CHAT_PLAYER_NOT_FOUND_S, "(.+)")
 	
 	self:RegisterComm("AHIST")
+
+	-- Not the funnest method, but Blizzard requires us to call this to get arena team info
+	for i=1, MAX_ARENA_TEAMS do
+		ArenaTeamRoster(i)
+	end
 end
 
 -- Create a list of teamIDs that we can use as a unique identify besides time
@@ -49,6 +54,10 @@ function Sync:IsOnTeam(name, bracket)
 	if( not name or not bracket ) then
 		return nil
 	end	
+
+	for i=1, MAX_ARENA_TEAMS do
+		ArenaTeamRoster(i)
+	end
 
 	for i=1, MAX_ARENA_TEAMS do
 		local teamSize = select(2, GetArenaTeam(i))
