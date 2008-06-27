@@ -14,6 +14,7 @@ local inspectQueue = {}
 local friendlyTalentData = {}
 local inspectedUnit
 local modEnabled
+local matchRecorded
 
 function ArenaHistorian:OnInitialize()
 	-- Defaults
@@ -57,6 +58,7 @@ function ArenaHistorian:OnEnable()
 	self:RegisterEvent("PLAYER_ENTERING_WORLD", "ZONE_CHANGED_NEW_AREA")
 	self:RegisterEvent("HONOR_CURRENCY_UPDATE", "CheckArenaReset")
 	self:RegisterEvent("PLAYER_LOGOUT")
+	self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
 	
 	self:ZONE_CHANGED_NEW_AREA()
 end
@@ -87,15 +89,15 @@ end
 
 -- Record new data
 function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
-	if( not GetBattlefieldWinner() ) then
+	if( not GetBattlefieldWinner() or not select(2, IsActiveBattlefieldArena()) or matchRecorded ) then
 		return
-	end
+	end	
 	
-	self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
+	matchRecorded = true
 
 	-- Figure out what bracket we're in
 	local bracket
-	for i=1, MAX_BATTLEFIELD_QUEUES do
+	for i=1, MAX_BATTLEFIELD_QUEUES  do
 		local status, _, _, _, _, teamSize = GetBattlefieldStatus(i)
 		if( status == "active" ) then
 			bracket = teamSize
@@ -276,14 +278,13 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 	
 	-- Inside an arena, but wasn't already
 	if( type == "arena" and type ~= instanceType and select(2, IsActiveBattlefieldArena()) ) then
-		self:RegisterEvent("UPDATE_BATTLEFIELD_SCORE")
 		self:RegisterEvent("PLAYER_TARGET_CHANGED")
 		self:RegisterEvent("UPDATE_MOUSEOVER_UNIT")
 		self:RegisterEvent("INSPECT_TALENT_READY")
 		self:RegisterEvent("RAID_ROSTER_UPDATE")
 		self:RegisterEvent("CHAT_MSG_BG_SYSTEM_NEUTRAL")
 		self:RAID_ROSTER_UPDATE()
-			
+		
 		-- Scan magic to make sure we get races of enemies
 		if( not self.scanFrame ) then
 			local timeElapsed = 0
@@ -307,11 +308,12 @@ function ArenaHistorian:ZONE_CHANGED_NEW_AREA()
 				
 		-- Enable talent module
 		self.talents:EnableCollection()
+		
+		matchRecorded = nil
 		modEnabled = true
 
 	-- Was in an arena, but left it
 	elseif( type ~= "arena" and instanceType == "arena" and modEnabled ) then
-		self:UnregisterEvent("UPDATE_BATTLEFIELD_SCORE")
 		self:UnregisterEvent("PLAYER_TARGET_CHANGED")
 		self:UnregisterEvent("UPDATE_MOUSEOVER_UNIT")
 		self:UnregisterEvent("RAID_ROSTER_UPDATE")

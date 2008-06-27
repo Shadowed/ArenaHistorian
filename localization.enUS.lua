@@ -72,7 +72,7 @@ ArenaHistLocals = {
 		["SCOURGE_FEMALE"] = "Undead",
 		["TROLL_FEMALE"] = "Troll",
 		["ORC_FEMALE"] = "Orc",
-		["BLOODELF_FEMALE"] = "Bloof Elf",
+		["BLOODELF_FEMALE"] = "Blood Elf",
 		["TAUREN_FEMALE"] = "Tauren",
 		["DRAENEI_FEMALE"] = "Draenei",
 	},
