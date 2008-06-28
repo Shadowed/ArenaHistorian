@@ -192,7 +192,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		end
 
 		-- Add it to the team list
-		local data = string.format("%s,%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone, tostring(guessTalents))
+		local data = string.format("%s,%s,%s,%s,%s", parseName, spec, classToken, playerRaceInfo[name] or self:RaceToToken(race), healingDone, damageDone)
 		if( faction == playerIndex ) then
 			table.insert(playerData, data)
 		else

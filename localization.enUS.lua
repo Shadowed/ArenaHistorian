@@ -9,8 +9,10 @@ ArenaHistLocals = {
 	["Run Time: %s"] = "Run Time: %s",
 	["Record: %s/%s"] = "Record: %s/%s",
 	["Zone: %s"] = "Zone: %s",
-	["%s - Damage (%d) / Healing (%d)"] = "%s - Damage (%d) / Healing (%d)",
+	["%s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)"] = "%s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)",
+	["%s - %s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)"] = "%s - %s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)",
 	["Date: %s"] = "Date: %s",
+	["%s:%s (%.1f%%) (%s)"] = "%s:%s (%.1f%%) (%s)",
 	
 	["Unknown"] = "Unknown",
 	["Arena Preparation"] = "Arena Preparation",
@@ -35,7 +37,14 @@ ArenaHistLocals = {
 	["Hold ALT and click the button to delete this arena record."] = "Hold ALT and click the button to delete this arena record.",
 
 	["The Arena battle has begun!"] = "The Arena battle has begun!",
-		
+	
+	["Strict"] = "Strict",
+	["Only show teams with all the selected classes in them."] = "Only show teams with all the selected classes in them.",
+	
+	["Show loses"] = "Show loses",
+	["Show wins"] = "Show wins",
+	["Show draws"] = "Show draws",
+	
 	-- Syncing
 	["Deny"] = "Deny",
 	["%s has requested missing data for %dvs%d, sync data?"] = "%s has requested missing data for %dvs%d, sync data?",
@@ -127,6 +136,36 @@ ArenaHistLocals = {
 	["MAGE"] = "Mage",
 	["HUNTER"] = "Hunter",
 	["ROGUE"] = "Rogue",
+	
+	-- Tree names
+	["Elemental"] = "Elemental",
+	["Enhancement"] = "Enhancement",
+	["Restoration"] = "Restoration",
+	["Arcane"] = "Arcane",
+	["Fire"] = "Fire",
+	["Frost"] = "Frost",
+	["Affliction"] = "Affliction",
+	["Demonology"] = "Deomonology",
+	["Destruction"] = "Destruction",
+	["Balance"] = "Balance",
+	["Feral"] = "Feral",
+	["Restoration"] = "Restoration",
+	["Arms"] = "Arms",
+	["Fury"] = "Fury",
+	["Protection"] = "Protection",
+	["Assassination"] = "Assassination",
+	["Combat"] = "Combat",
+	["Subtlety"] = "Subtlety",
+	["Holy"] = "Holy",
+	["Protection"] = "Protection",
+	["Retribution"] = "Retribution",
+	["Beast Mastery"] = "Beast Mastery",
+	["Marksmanship"] = "Marksmanship",
+	["Survival"] = "Survival",
+	["Discipline"] = "Discipline",
+	["Holy"] = "Holy",
+	["Shadow"] = "Shadow",
+	
 	
 	-- Config
 	["ArenaHistorian slash commands"] = "ArenaHistorian slash commands",

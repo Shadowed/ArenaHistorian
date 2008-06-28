@@ -15,7 +15,6 @@ local DEEP_THRESHOLD = 30
 local FONT_SIZE = 10
 local ICON_SIZE = 16
 
-
 -- Stolen out of GlueXML
 local RACE_ICONS = {
 	["HUMAN_MALE"] = {0, 0.125, 0, 0.25}, ["DWARF_MALE"] = {0.125, 0.25, 0, 0.25}, ["GNOME_MALE"] = {0.25, 0.375, 0, 0.25}, ["NIGHTELF_MALE"] = {0.375, 0.5, 0, 0.25},
@@ -38,17 +37,31 @@ local TREE_ICONS = {
 	["PRIEST"] = {"Spell_Holy_WordFortitude", "Spell_Holy_HolyBolt", "Spell_Shadow_ShadowWordPain"},
 }
 
-function GUI:GetSpecName(class, spec, isGuess, isCustom)
+-- Tree names
+local TREE_NAMES = {
+	["SHAMAN"] = {L["Elemental"], L["Enhancement"], L["Restoration"]},
+	["MAGE"] = {L["Arcane"], L["Fire"], L["Frost"]},
+	["WARLOCK"] = {L["Affliction"], L["Demonology"], L["Destruction"]},
+	["DRUID"] = {L["Balance"], L["Feral"], L["Restoration"]},
+	["WARRIOR"] = {L["Arms"], L["Fury"], L["Protection"]},
+	["ROGUE"] = {L["Assassination"], L["Combat"], L["Subtlety"]},
+	["PALADIN"] = {L["Holy"], L["Protection"], L["Retribution"]},
+	["HUNTER"] = {L["Beast Mastery"], L["Marksmanship"], L["Survival"]},
+	["PRIEST"] = {L["Discipline"], L["Holy"], L["Shadow"]},
+}
+
+function GUI:GetSpecName(class, spec)
 	local tree1, tree2, tree3 = string.split("/", spec)
 	tree1 = tonumber(tree1) or 0
 	tree2 = tonumber(tree2) or 0
 	tree3 = tonumber(tree3) or 0	
 	
 	if( tree1 == 0 and tree2 == 0 and tree3 == 0 ) then
-		return "INV_Misc_QuestionMark", L["Unknown"]
+		return "INV_Misc_QuestionMark", L["Unknown"], L["Unknown"]
 	end
 
 	-- Check for a hybrid spec
+	--[[
 	local deepTrees = 0
 	if( tree1 >= DEEP_THRESHOLD ) then
 		deepTrees = deepTrees + 1
@@ -61,19 +74,46 @@ function GUI:GetSpecName(class, spec, isGuess, isCustom)
 	end
 
 	if( deepTrees > 1 ) then
-		return "Spell_Nature_ElementalAbsorption", string.format("%d/%d/%d", tree1, tree2, tree3)
+		return "Spell_Nature_ElementalAbsorption", string.format("%d/%d/%d", tree1, tree2, tree3), 
 	end
-		
+	]]
+	
 	-- Now check specifics
 	if( tree1 > tree2 and tree1 > tree3 ) then
-		return TREE_ICONS[class][1], string.format("%d/%d/%d", tree1, tree2, tree3)
+		return TREE_ICONS[class][1], string.format("%d/%d/%d", tree1, tree2, tree3), TREE_NAMES[class][1]
 	elseif( tree2 > tree1 and tree2 > tree3 ) then
-		return TREE_ICONS[class][2], string.format("%d/%d/%d", tree1, tree2, tree3)
+		return TREE_ICONS[class][2], string.format("%d/%d/%d", tree1, tree2, tree3), TREE_NAMES[class][2]
 	elseif( tree3 > tree1 and tree3 > tree2 ) then
-		return TREE_ICONS[class][3], string.format("%d/%d/%d", tree1, tree2, tree3)
+		return TREE_ICONS[class][3], string.format("%d/%d/%d", tree1, tree2, tree3), TREE_NAMES[class][3]
 	end
 	
-	return "INV_Misc_QuestionMark", L["Unknown"]
+	return "INV_Misc_QuestionMark", L["Unknown"], L["Unknown"]
+end
+
+-- Quick tooltip showing function
+local function OnEnter(self)
+	if( self.tooltip ) then
+		GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
+		GameTooltip:SetText(self.tooltip)
+		GameTooltip:Show()
+	end
+end
+
+local function OnLeave(self)
+	GameTooltip:Hide()
+end
+
+-- Changes 1000 into 1,000 and 10000 into 10,000 and so on
+local function formatNumber(number)
+	number = math.floor(number + 0.5)
+
+	while( true ) do
+		number, k = string.gsub(number, "^(-?%d+)(%d%d%d)", "%1,%2")
+		if( k == 0 ) then break end
+
+	end
+
+	return number
 end
 
 local talentPopup
@@ -354,6 +394,20 @@ local function sortTeamInfo(a, b)
 	return a.name < b.name
 end
 
+local function sortClassInfo(a, b)
+	if( not a ) then
+		return true
+	elseif( not b ) then
+		return false
+	end
+
+	return a.classToken < b.classToken
+end
+
+local function sortID(a, b)
+	return a > b
+end
+
 local function sortHistory(a, b)
 	if( not a ) then
 		return true
@@ -364,21 +418,16 @@ local function sortHistory(a, b)
 	return a.time > b.time
 end
 
-local function sortClassSpecs(a, b)
-	return a < b
-end
-
 local function parseTeamData(...)
 	local teamData = {}
 	
 	for i=1, select("#", ...) do
-		local name, spec, classToken, race, healingDone, damageDone, guessTalents = string.split(",", (select(i, ...)))
+		local name, spec, classToken, race, healingDone, damageDone = string.split(",", (select(i, ...)))
 		
 		local row = {
 			name = name,
 			race = race,
 			classToken = classToken,
-			guessTalents = (guessTalents == "true"),
 			spec = (spec ~= "" and spec or nil),
 			healingDone = tonumber(healingDone) or 0,
 			damageDone = tonumber(damageDone) or 0,
@@ -387,7 +436,21 @@ local function parseTeamData(...)
 		table.insert(teamData, row)
 	end
 
-	-- Alpha sort
+	-- Sort by makeup for the id
+	table.sort(teamData, sortClassInfo)
+	
+	-- Create team's class id
+	local classID = ""
+	for id, data in pairs(teamData) do
+		if( id > 1 ) then
+			classID = classID .. ":" .. data.classToken
+		else
+			classID = data.classToken
+		end
+	end
+	
+
+	-- Sort names in alpha order for viewing thing
 	table.sort(teamData, sortTeamInfo)
 	
 	-- Create the team id
@@ -396,11 +459,12 @@ local function parseTeamData(...)
 		teamID = teamID .. data.name
 	end
 	
-	return teamData, teamID
+	return teamData, teamID, classID
 end
 
 -- Win/lose stats per makeup
 local classData = {}
+local teamData = {}
 function updateStatCache()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
@@ -411,8 +475,9 @@ function updateStatCache()
 			alreadyParsedStat[self.frame.bracket .. data.recordID] = true
 			
 			for i=#(classData), 1, -1 do table.remove(classData, i) end
+			for i=#(teamData), 1, -1 do table.remove(teamData, i) end
 			
-			for _, playerData in pairs(data.enemyTeam) do
+			for id, playerData in pairs(data.enemyTeam) do
 				local playerTalents = playerData.spec or ""
 				
 				-- Load custom talent data (if any)
@@ -426,23 +491,41 @@ function updateStatCache()
 
 				end
 				
-				local icon = self:GetSpecName(playerData.classToken, playerTalents)
-				table.insert(classData, string.format("%s:%s", icon, playerData.classToken))
+				local icon, _, name = self:GetSpecName(playerData.classToken, playerTalents)
+				
+				table.insert(classData, playerData.classToken)
+				table.insert(teamData, string.format("%s:%s:%s", playerData.classToken, icon, name))
 			end
 			
-			table.sort(classData, sortClassSpecs)
+			-- Make sure it stays consistent
+			table.sort(classData, sortID)
+			table.sort(teamData, sortID)
 			
-			local teamID = table.concat(classData, ";")
+			local classID = table.concat(classData, ":")
+			local teamID = table.concat(teamData, ";")
+			local talents = {}
 			
-			if( not mapStats[teamID] ) then
-				mapStats[teamID] = { win = 0, lose = 0, gameLength = 0 }
+			for _, talentID in pairs(teamData) do
+				table.insert(talents, talentID)
 			end
 			
-			mapStats[teamID].gameLength = mapStats[teamID].gameLength + data.runTime
+			-- Annd compile everything
+			if( not mapStats[classID] ) then
+				mapStats[classID] = {}
+			end
+			
+			if( not mapStats[classID][teamID] ) then
+				mapStats[classID][teamID] = {totalGames = 0, won = 0, lost = 0, gameLength = 0, talents = talents}
+			end
+			
+			local stats = mapStats[classID][teamID]
+			stats.gameLength = stats.gameLength + data.runTime
+			stats.totalGames = stats.totalGames + 1
+			
 			if( data.won ) then
-				mapStats[teamID].win = mapStats[teamID].win + 1
+				stats.won = stats.won + 1
 			else
-				mapStats[teamID].lose = mapStats[teamID].lose + 1
+				stats.lost = stats.lost + 1
 			end
 		end
 	end
@@ -470,8 +553,8 @@ local function updateCache()
 				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, eServer, pServer = string.split(":", matchData)
 				
 				-- Generate the player and enemy team mate info
-				local playerTeam, playerTeamID = parseTeamData(string.split(":", playerTeam))
-				local enemyTeam, enemyTeamID = parseTeamData(string.split(":", enemyTeam))
+				local playerTeam, playerTeamID, playerTeamClassID = parseTeamData(string.split(":", playerTeam))
+				local enemyTeam, enemyTeamID, enemyTeamClassID = parseTeamData(string.split(":", enemyTeam))
 				
 				-- Map stat
 				if( not mapStats[arenaZone] ) then
@@ -487,12 +570,17 @@ local function updateCache()
 					stats[teamID] = {won = 0, lost = 0}
 				end
 				
+				local result = 1
 				if( playerWon == "true" or playerWon == "1" ) then
+					result = 1
 					stats[teamID].won = stats[teamID].won + 1
 					mapStats[arenaZone].won = mapStats[arenaZone].won + 1
 				elseif( playerWon == "nil" or playerWon == "-1" ) then
+					result = -1
 					stats[teamID].lost = stats[teamID].lost + 1
 					mapStats[arenaZone].lost = mapStats[arenaZone].lost + 1
+				else
+					result = 0
 				end
 
 				-- Match information
@@ -500,25 +588,28 @@ local function updateCache()
 					zone = arenaZone,
 					time = tonumber(endTime) or 0,
 					runTime = tonumber(runTime) or 0,
+					result = result,
 					won = (playerWon == "true" or playerWon == "1"),
 					draw = (playerWon == "0"),
 					teamID = teamID,
 					recordID = id,
 					
 					pTeamName = playerTeamName,
+					pTeamClasses = playerTeamClassID,
 					pServer = pServer ~= "" and pServer or nil,
 					pRating = tonumber(pRating) or 0,
 					pChange = tonumber(pChange) or 0,
 					
 					eTeamName = enemyTeamName,
-					eServer = eServer ~= "" and eSever or nil,
+					eTeamClasses = enemyTeamClassID,
+					eServer = eServer ~= "" and eServer or nil,
 					eRating = tonumber(eRating) or 0,
 					eChange = tonumber(eChange) or 0,
 					
 					playerTeam = playerTeam,
 					enemyTeam = enemyTeam,
 				}
-
+				
 				table.insert(history, matchTbl)
 			end
 		end
@@ -530,14 +621,20 @@ local function updateCache()
 	updateStatCache()
 end
 
-local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, teamID)
+-- Build the actual player page
+local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, teamServer, teamID)
 	for i=1, MAX_TEAM_MEMBERS do
 		local row = teamRows[i]
 		local data = teamData[i]
 
 		if( data ) then
 			-- Name, colored by class
-			row.name.tooltip = string.format(L["%s - Damage (%d) / Healing (%d)"], data.name, data.damageDone, data.healingDone)
+			if( teamServer ) then
+				row.name.tooltip = string.format(L["%s - %s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)"], data.name, teamServer, formatNumber(data.damageDone), formatNumber(data.healingDone))
+			else
+				row.name.tooltip = string.format(L["%s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)"], data.name, formatNumber(data.damageDone), formatNumber(data.healingDone))
+			end
+			
 			row.name:SetText(data.name)
 			row.name:SetTextColor(RAID_CLASS_COLORS[data.classToken].r, RAID_CLASS_COLORS[data.classToken].g, RAID_CLASS_COLORS[data.classToken].b)
 			row.name:SetWidth(nameLimit)
@@ -548,13 +645,11 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 			
 			-- Check if we should override our saved data with custom data
 			local id = GUI.frame.bracket .. teamName .. data.name
-			local isCustom
 			if( ArenaHistoryCustomData[id] ) then
 				local talents, race = string.split(":", ArenaHistoryCustomData[id])
 				
 				if( talents ~= "" ) then
 					data.spec = talents
-					isCustom = true
 				end
 				
 				if( race ~= "" ) then
@@ -573,7 +668,7 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 			
 			-- Spec icon
 			if( data.spec and data.spec ~= "" ) then
-				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec, data.guessTalents, isCustom)
+				local icon, tooltip = GUI:GetSpecName(data.classToken, data.spec)
 				row.specIcon.tooltip = tooltip
 				row.specIcon.classToken = data.classToken
 				row.specIcon.spec = data.spec
@@ -606,14 +701,212 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 	end
 end
 
+-- Wrap the class color around text
+local function wrapClassColor(classToken, text)
+	local color = RAID_CLASS_COLORS[classToken]
+	return string.format("|cff%02x%02x%02x%s|r", color.r * 255, color.g * 255, color.b * 255, text)
+end
+
+-- Formats 120 seconds as 2m, 130 seconds as 2m10s and such
+local function formatTime(totalTime)
+	totalTime = totalTime / 1000
+	
+	local hour = ""
+	local minutes = ""
+	local seconds = ""
+	
+
+	-- Hours
+	if( totalTime >= 3600 ) then
+		hour = floor(totalTime / 3600) .. "h"
+		totalTime = mod(totalTime, 3600)
+	end
+	
+	-- Minutes
+	if( totalTime >= 60 ) then
+		minutes = floor(totalTime / 60) .. "m"
+		totalTime = mod(totalTime, 60)
+	end
+	
+	-- Seconds
+	if( totalTime > 0 ) then
+		seconds = floor(totalTime + 0.5) .. "s"
+	end
+	
+	return hour .. minutes .. seconds
+end
+
+-- Build the actual page
+local function setStatPage(id, statData, ...)
+	local frame = GUI.statFrame.rows[id]
+	
+	local fullMakeup, makeup
+	local classID = ""
+	
+	for i=1, select("#", ...) do
+		local classToken = select(i, ...)
+		
+		-- If it's 2vs2, we have enough space to show the full classes instead of abbrevs
+		local text = L[classToken]
+		if( GUI.frame.bracket > 2 ) then
+			text = string.sub(classToken, 0, 1)
+		end
+		
+		-- Create a full make up for the tooltip
+		if( i > 1 ) then
+			makeup = makeup .. "/" .. wrapClassColor(classToken, text)
+			fullMakeup = fullMakeup .. " / " .. L[classToken]
+		else
+			makeup = wrapClassColor(classToken, text)
+			fullMakeup = L[classToken]
+		end
+		
+		classID = classID .. classToken
+	end
+	
+	-- Setup the talent icons
+	frame.icons = frame.icons or {}
+	
+	-- Hide everything
+	for _, rows in pairs(frame.icons) do
+		for _, row in pairs(rows) do
+			row:Hide()
+		end
+	end
+	
+	local totalRows = 0
+	local totalGames = 0
+	local usedHeight = 25
+	
+	for _, data in pairs(statData) do
+		totalRows = totalRows + 1
+		totalGames = totalGames + data.totalGames
+		usedHeight = usedHeight + 33
+		
+		-- Create the icons quickly
+		local statRow = frame.icons[totalRows]
+		if( not icons ) then
+			frame.icons[totalRows] = {}
+			statRow = frame.icons[totalRows]
+			
+			-- Icons
+			for i=1, 5 do
+				local icon = CreateFrame("Button", nil, frame)
+				icon:SetHeight(ICON_SIZE)
+				icon:SetWidth(ICON_SIZE)
+				icon:SetScript("OnEnter", OnEnter)
+				icon:SetScript("OnLeave", OnLeave)
+				icon:Hide()
+				
+				if( i > 1 ) then
+					icon:SetPoint("TOPLEFT", statRow[i - 1], "TOPRIGHT", 5, 0)
+				elseif( totalRows > 1 ) then
+					icon:SetPoint("TOPLEFT", frame.icons[totalRows - 1][1], "BOTTOMLEFT", 0, -18)
+				else
+					icon:SetPoint("TOPLEFT", frame.makeup, "BOTTOMLEFT", 1, -1)
+				end
+				
+				statRow[i] = icon
+			end
+			
+			-- Stats below the icons
+			local statText = frame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+			statText:SetFont(GameFontHighlightSmall:GetFont(), 11)
+			if( totalRows > 1 ) then
+				statText:SetPoint("TOPLEFT", frame.icons[totalRows - 1].text, "BOTTOMLEFT", 0, -24)
+			else
+				statText:SetPoint("TOPLEFT", frame.makeup, "TOPLEFT", -1, -37)
+			end
+			
+			statText:Hide()
+			
+			statRow.text = statText
+		end
+
+		for id, talentInfo in pairs(data.talents) do
+			local classToken, icon, name = string.split(":", talentInfo)
+			
+			statRow[id].tooltip = string.format("%s %s", name, L[classToken])
+			statRow[id]:SetNormalTexture("Interface\\Icons\\" .. icon)
+			statRow[id]:Show()
+		end
+	
+		statRow.text:SetFormattedText("%s:%s (%d%%) (%s)", GREEN_FONT_COLOR_CODE .. data.won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. data.lost .. FONT_COLOR_CODE_CLOSE, data.won / ( data.won + data.lost ) * 100, formatTime(data.gameLength / data.totalGames))
+		statRow.text:Show()
+	end
+	
+	-- Base data and such
+	frame.totalGames = totalGames
+	frame.classID = classID
+	frame.makeup.tooltip = fullMakeup
+	frame.makeup:SetText(makeup)
+	frame:SetHeight(usedHeight)
+end
+
+local function sortGames(a, b)
+	if( not a ) then
+		return true
+	elseif( not b ) then
+		return false
+	end
+	
+	if( a.totalGames == b.totalGames ) then
+		return a.classID > b.classID
+	end
+	
+	return a.totalGames > b.totalGames
+end
+
+-- Update the team vs stats
 local function updateStatPage()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
 	local statHistory = arenaTeamStats[self.frame.bracket]
 	
-	local test = self.statFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	test:SetPoint("CENTER", self.statFrame, "CENTER", 0, 0)
-	test:SetText("FOO BAR")
+	-- Hide everything
+	for id, row in pairs(self.statFrame.rows) do
+		row.classID = "z"
+		row.totalGames = 100
+		row:Hide()
+	end
+
+	-- Update the display
+	local id = 0
+	for teamID, data in pairs(statHistory) do
+		id = id + 1
+		setStatPage(id, data, string.split(":", teamID))
+	end
+	
+	table.sort(self.statFrame.rows, sortGames)
+	
+	-- Reposition it all
+	local largestRow = 0
+	local heightUsed = 0
+	local rowsUsed = -1
+	
+	local SPACING = 4
+	
+	for id, row in pairs(self.statFrame.rows) do
+		rowsUsed = rowsUsed + 1
+		row:Show()
+		
+		if( row:GetHeight() > largestRow ) then
+			largestRow = row:GetHeight()
+		end
+	
+		if( id == 1 ) then
+			row:SetPoint("TOPLEFT", self.statFrame, "TOPLEFT", 0, 0)
+		elseif( rowsUsed == 4 ) then
+			heightUsed = heightUsed - largestRow - SPACING
+			largestRow = 0
+			rowsUsed = 0
+			
+			row:SetPoint("TOPLEFT", self.statFrame, "TOPLEFT", 0, heightUsed)
+		else
+			row:SetPoint("TOPLEFT", self.statFrame.rows[id - 1], "TOPRIGHT", SPACING, 0)
+		end
+	end
+	
 	
 	self.statFrame:Show()
 	self.statFrame.scroll:Show()
@@ -685,13 +978,13 @@ local function updateHistoryPage()
 				row.enemyTeam:SetText(matchInfo.eTeamName)
 				row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
 
-				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam, matchInfo.eTeamName, matchInfo.teamID)
+				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam, matchInfo.eTeamName, matchInfo.eServer, matchInfo.teamID)
 
 				-- Player team display
 				row.playerTeam:SetText(matchInfo.pTeamName)
 				row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
 
-				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.teamID)
+				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.pServer, matchInfo.teamID)
 
 				-- Green border if we won, red if we lost, yellow if draw
 				if( matchInfo.draw ) then
@@ -733,34 +1026,45 @@ local function updatePage()
 	end
 end
 
+-- Resets the scroll bar to the top
+local function resetScrollBar()
+	getglobal(GUI.frame.scroll:GetName() .. "ScrollBar"):SetValue(0)
+	GUI.frame.scroll.offset = 0
+end
+
 -- Update which rows are visible
 local function updateFilters()
 	local self = GUI
 	local history = arenaData[self.frame.bracket]
 	local filters = self.frame.filters
-		
+	
+	resetScrollBar()
+	
 	for id, matchInfo in pairs(history) do
 		matchInfo.hidden = true
 
-		-- Check if team name matches (or no team name filter)
-		if( not filters.teamName or ( filters.teamName and string.match(string.lower(matchInfo.eTeamName), filters.teamName) ) ) then
-			-- Check if enemies rating is above the minimum, but below maximum
-			if( matchInfo.eRating >= filters.minRate and matchInfo.eRating <= filters.maxRate ) then
-				-- Check if we should filter this zone
-				if( filters[matchInfo.zone] ) then
-					-- See if we need to search the team members
-					if( filters.playerName or filters.searchClasses ) then
-						for _, data in pairs(matchInfo.enemyTeam) do
-							-- Check name
-							if( not filters.playerName or ( filters.playerName and string.match(string.lower(data.name), filters.playerName) ) ) then
-								-- Check class
-								if( not filters.searchClasses or ( filters.searchClasses and not filters.classes[data.classToken] ) ) then
-									matchInfo.hidden = nil
+		-- Fesults of the match (won/lost/draw) and if we should show this map
+		if( filters.results[matchInfo.result] and filters[matchInfo.zone] ) then
+			-- Team name amtches
+			if( not filters.teamName or string.match(string.lower(matchInfo.eTeamName), filters.teamName) ) then
+				-- Enemies rating is above or below what we provided
+				if( matchInfo.eRating >= filters.minRate and matchInfo.eRating <= filters.maxRate ) then
+					-- Strict class filtering (only teams with ALL the classes on it)
+					if( not filters.strictClasses or filters.classID == matchInfo.eTeamClasses ) then
+						-- See if we need to search the team members
+						if( filters.playerName or ( filters.searchClasses and not filters.strictClasses ) ) then
+							for _, data in pairs(matchInfo.enemyTeam) do
+								-- Check name
+								if( not filters.playerName or string.match(string.lower(data.name), filters.playerName) ) then
+									-- Check class
+									if( not filters.searchClasses or filters.strictClasses or ( filters.searchClasses and not filters.classes[data.classToken] ) ) then
+										matchInfo.hidden = nil
+									end
 								end
 							end
+						else
+							matchInfo.hidden = nil
 						end
-					else
-						matchInfo.hidden = nil
 					end
 				end
 			end
@@ -830,6 +1134,27 @@ local function updateClassButton(self)
 			filters.searchClasses = true
 		end
 	end
+
+end
+
+-- Update which rows are visible
+local function quickSort(a, b) return a < b end
+local classTable = {}
+
+local function updateClassID()
+	local filters = GUI.frame.filters
+	
+	-- Create a class id thats compiled of everything we've looking for
+	for i=#(classTable), 1, -1 do table.remove(classTable, i) end
+	for class, flag in pairs(filters.classes) do
+		if( not flag ) then
+			table.insert(classTable, class)
+		end
+	end
+		
+	table.sort(classTable, quickSort)
+	
+	filters.classID = table.concat(classTable, ":")
 end
 
 local function searchClasses(self)
@@ -837,6 +1162,11 @@ local function searchClasses(self)
 	filters.classes[self.type] = not filters.classes[self.type]
 	
 	updateClassButton(self)
+	
+	-- Update class ID if needed
+	if( filters.strictClasses ) then
+		updateClassID()
+	end
 	
 	-- Annd finally update filters
 	updateFilters()
@@ -875,17 +1205,6 @@ local function searchZone(self)
 	end
 end
 
-local function searchEnemyTalents()
-	local filters = GUI.frame.filters
-	local talent = string.format("%d/%d/%d", tonumber(GUI.tabFrame.pointOne:GetText()) or 0, tonumber(GUI.tabFrame.pointTwo:GetText()) or 0, tonumber(GUI.tabFrame.pointThree:GetText()) or 0)
-	if( talent ~= filters.talent ) then
-		filters.talent = talent
-
-		updateFilters()
-		updatePage()
-	end
-end
-
 local function searchFocusGained(self)
 	if( self.searchText ) then
 		self.searchText = nil
@@ -899,6 +1218,18 @@ local function searchFocusLost(self)
 		self.searchText = true
 		self:SetText(self.defaultText)
 		self:SetTextColor(0.90, 0.90, 0.90, 0.80)
+	end
+end
+
+local function searchResults(self)
+	local filters = GUI.frame.filters
+	local status = self:GetChecked()
+	
+	if( status ~= filters.results[self.type] ) then
+		filters.results[self.type] = status
+		
+		updateFilters()
+		updatePage()
 	end
 end
 
@@ -920,6 +1251,12 @@ end
 
 local function resetCheck(self)
 	self:SetChecked(true)
+	GUI.frame.filters[self.type] = true
+end
+
+local function resetResultsCheck(self)
+	self:SetChecked(true)
+	GUI.frame.filters.results[self.type] = true
 end
 
 local function updateButtonHighlight()
@@ -990,19 +1327,7 @@ local infoBackdrop = {	bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
 			edgeSize = 1,
 			tileSize = 5,
 			insets = {left = 1, right = 1, top = 1, bottom = 1}}
-
-local function OnEnter(self)
-	if( self.tooltip ) then
-		GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-		GameTooltip:SetText(self.tooltip)
-		GameTooltip:Show()
-	end
-end
-
-local function OnLeave(self)
-	GameTooltip:Hide()
-end
-
+			
 local function createTeamRows(frame, firstParent)
 	local teamRows = {}
 	for i=1, MAX_TEAM_MEMBERS do
@@ -1132,6 +1457,33 @@ local function createTeamInfo(parent)
 	return frame
 end
 
+local function createStatRow(parent)
+	local frame = CreateFrame("Frame", nil, parent)
+	frame:SetWidth(125)
+	frame:SetHeight(75)
+	frame:SetBackdrop(infoBackdrop)
+	frame:SetBackdropColor(0.0, 0.0, 0.0, 1.0)
+	frame:SetBackdropBorderColor(0.65, 0.65, 0.65, 1.0)
+	frame:Hide()
+	
+	-- Class combo text
+	frame.makeup = CreateFrame("Button", nil, frame)
+	frame.makeup:SetTextFontObject(GameFontNormalSmall)
+	frame.makeup:SetTextColor(1, 1, 1)
+	frame.makeup:SetPushedTextOffset(0,0)
+	frame.makeup:SetHeight(18)
+	frame.makeup:SetWidth(100)
+	frame.makeup:SetScript("OnEnter", OnEnter)
+	frame.makeup:SetScript("OnLeave", OnLeave)
+	frame.makeup:SetPoint("TOPLEFT", frame, "TOPLEFT", 2, 0)
+	
+	frame.makeup:SetText("*")
+	frame.makeup:GetFontString():SetJustifyH("LEFT")
+	frame.makeup:GetFontString():SetWidth(100)
+
+	return frame
+end
+
 -- Main container frame, we should probably wrap this in another frame so we can actually center it
 function GUI:CreateFrame()
 	if( self.frame ) then
@@ -1139,18 +1491,27 @@ function GUI:CreateFrame()
 	end
 				
 	local backdrop = {bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
-			edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
-			tile = false,
-			edgeSize = 1,
-			tileSize = 5,
-			insets = {left = 1, right = 1, top = 1, bottom = 1}}
+		edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
+		tile = false,
+		edgeSize = 1,
+		tileSize = 5,
+		insets = {left = 1, right = 1, top = 1, bottom = 1}}
 
 	-- Create the main window
 	self.frame = CreateFrame("Frame", "ArenaHistorianFrame", UIParent)
 	self.frame.bracket = ArenaHistorian.db.profile.lastBracket
 	self.frame.type = ArenaHistorian.db.profile.lastType
 	self.frame:Hide()
-	self.frame:SetScript("OnShow", function()
+	self.frame:SetScript("OnShow", function(self)
+		-- Hide everything and let the page we're showing show it on it's own
+		GUI.statFrame.scroll:Hide()
+		GUI.frame.scroll:Hide()
+
+		for _, row in pairs(GUI.rows) do
+			row:Hide()
+		end
+
+		-- Reset filters and update everything else
 		resetFilters()
 		updateButtonHighlight()
 		updateCache()
@@ -1177,26 +1538,39 @@ function GUI:CreateFrame()
 	self.frame:SetBackdropBorderColor(0.75, 0.75, 0.75, 1.0)
 	self.frame:SetPoint("CENTER", UIParent, "CENTER", 75, 0)
 
-	self.frame.filters = {["BEA"] = true, ["NA"] = true, ["RoL"] = true, classes = {}, minRate = 0, maxRate = 0}
+	self.frame.filters = {["BEA"] = true, ["NA"] = true, ["RoL"] = true, classes = {}, results = {[-1] = true, [0] = true, [1] = true}, minRate = 0, maxRate = 0}
 
 	table.insert(UISpecialFrames, "ArenaHistorianFrame")
 	
 	-- Scroll frame
 	self.frame.scroll = CreateFrame("ScrollFrame", "ArenaHistorianFrameScroll", self.frame, "FauxScrollFrameTemplate")
+	self.frame.scroll:SetScript("OnShow", resetScrollBar)
 	self.frame.scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 26, -24)
 	self.frame.scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -26, 4)
 	self.frame.scroll:SetScript("OnVerticalScroll", function() FauxScrollFrame_OnVerticalScroll(75, updatePage) end)
 	
-	-- Stat frame
+	-- STAT FARME
 	local scroll = CreateFrame("ScrollFrame", "ArenaHistorianFrameStatScroll", self.frame, "UIPanelScrollFrameTemplate")
 	
-	self.statFrame = CreateFrame("Frame", nil, self.frame)
-	self.statFrame:SetWidth(1)
-	self.statFrame:SetHeight(1)
-	self.statFrame:SetParent(scroll)
+	-- Actual data is shown on this frame
+	self.statFrame = CreateFrame("Frame", nil, scroll)
+	self.statFrame:SetHeight(410)
+	self.statFrame:SetWidth(515)
 
+	self.statFrame.rows = setmetatable({}, {__index = function(t, k)
+		local row = createStatRow(GUI.statFrame)
+		rawset(t, k, row)
+
+		return row
+	end})
+	
+	-- Scroll frame
+	scroll:SetWidth(550)
+	scroll:SetScrollChild(self.statFrame)
+	scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 5, -24)
+	scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -26, 4)
+	
 	self.statFrame.scroll = scroll
-	self.statFrame.scroll:SetScrollChild(self.statFrame)
 	
 	-- Close button
 	local button = CreateFrame("Button", nil, self.frame, "UIPanelCloseButton")
@@ -1265,6 +1639,7 @@ function GUI:CreateFrame()
 	filter:SetWidth(18)
 	filter:SetChecked(true)
 	filter.type = "BEA"
+	filter.reset = resetCheck
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
 	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -100)
@@ -1286,6 +1661,7 @@ function GUI:CreateFrame()
 	filter:SetWidth(18)
 	filter:SetChecked(true)
 	filter.type = "NA"
+	filter.reset = resetCheck
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
 	filter:SetPoint("TOPLEFT", self.tabFrame.BEA, "TOPLEFT", -FILTER_TEXT_X, -15)
@@ -1322,12 +1698,63 @@ function GUI:CreateFrame()
 	
 	self.tabFrame.RoL = RoL
 
-	-- Now create our filters for the tab frame
+	-- WON FILTER
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = 1
+	filter.reset = resetResultsCheck
+	filter:SetScript("OnClick", searchResults)
+	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -200)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Show wins"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.wonFilter = filter
+	table.insert(self.tabFrame.filters, filter)
+	
+	-- LOST FILTER
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = -1
+	filter.reset = resetResultsCheck
+	filter:SetScript("OnClick", searchResults)
+	filter:SetPoint("TOPLEFT", self.tabFrame.wonFilter, "TOPLEFT", 0, -16)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Show loses"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.lostFilter = filter
+	table.insert(self.tabFrame.filters, filter)
+	
+	-- DRAW FILTER
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = 0
+	filter.reset = resetResultsCheck
+	filter:SetScript("OnClick", searchResults)
+	filter:SetPoint("TOPLEFT", self.tabFrame.lostFilter, "TOPLEFT", 0, -16)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Show draws"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.wonFilter = filter
+	table.insert(self.tabFrame.filters, filter)
+	
 	-- CLASS FILTERS
 	local label = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	label:SetText(L["Classes"])
-	label:SetPoint("CENTER", self.tabFrame, "BOTTOM", -48, 175)
-	
+	label:SetPoint("CENTER", self.tabFrame, "BOTTOM", -47, 175)
+
+	-- Actual buttons
 	local buttons = {}
 	local id = 0
 	local lastColumn = 1
@@ -1350,7 +1777,7 @@ function GUI:CreateFrame()
 		button.tooltip = string.format(L["%s's shown"], L[classToken])
 		
 		if( id == 1 ) then
-			button:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -2)
+			button:SetPoint("TOPLEFT", label, "BOTTOMLEFT", 0, -3)
 		elseif( id % 6 == 0 ) then
 			button:SetPoint("TOPLEFT", buttons[lastColumn], "BOTTOMLEFT", 0, -2)
 			lastColumn = id
@@ -1363,64 +1790,45 @@ function GUI:CreateFrame()
 		
 		self.frame.filters.classes[classToken] = false
 	end
+	
+	self.frame.classButtons = buttons
+	
+	-- Strict filtering
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(false)
+	filter.tooltip = L["Only show teams with all the selected classes in them."]
 
-	-- TALENT FILTER
-	--[[
-	-- One
-	local pointOne = CreateFrame("EditBox", "ArenaHistorianTalentOne", self.tabFrame, "InputBoxTemplate")
-	pointOne:SetHeight(20)
-	pointOne:SetWidth(20)
-	pointOne:SetNumeric(true)
-	pointOne:SetAutoFocus(false)
-	pointOne:SetScript("OnTextChanged", searchEnemyTalents)
-	pointOne:SetScript("OnTabPressed", function() GUI.tabFrame.pointTwo:SetFocus(); end)
-	pointOne:SetScript("OnEditFocusGained", searchFocusGained)
-	pointOne:SetScript("OnEditFocusLost", searchFocusLost)
-	pointOne:ClearAllPoints()
-	pointOne:SetPoint("CENTER", self.tabFrame, "BOTTOM", -53, 120)
-	pointOne.defaultText = 0
-
-	self.tabFrame.pointOne = pointOne
-	table.insert(self.tabFrame.filters, pointOne)
+	filter:SetScript("OnClick", function(self)
+		GUI.frame.filters.strictClasses = self:GetChecked()
+		
+		if( GUI.frame.filters.strictClasses ) then
+			for _, button in pairs(GUI.frame.classButtons) do
+				GUI.frame.filters.classes[button.type] = true
+				updateClassButton(button)
+			end
+		else
+			for _, button in pairs(GUI.frame.classButtons) do
+				resetClass(button)
+			end
+		end
+		
+		updateClassID()
+		updateFilters()
+		updatePage()
+	end)
+	filter:SetScript("OnHide", function(self)
+		self:SetChecked(false)
+		GUI.frame.filters.strictClasses = false
+	end)
+	filter:SetScript("OnEnter", OnEnter)
+	filter:SetScript("OnLeave", OnLeave)
+	filter:SetPoint("TOPLEFT", label, "TOPLEFT", 85, 3)
 	
-	-- Two
-	local pointTwo = CreateFrame("EditBox", "ArenaHistorianTalentTwo", self.tabFrame, "InputBoxTemplate")
-	pointTwo:SetHeight(20)
-	pointTwo:SetWidth(20)
-	pointTwo:SetNumeric(true)
-	pointTwo:SetAutoFocus(false)
-	pointTwo:SetScript("OnTextChanged", searchEnemyTalents)
-	pointTwo:SetScript("OnTabPressed", function() GUI.tabFrame.pointThree:SetFocus(); end)
-	pointTwo:SetScript("OnEditFocusGained", searchFocusGained)
-	pointTwo:SetScript("OnEditFocusLost", searchFocusLost)
-	pointTwo:ClearAllPoints()
-	pointTwo:SetPoint("TOPLEFT", pointOne, "TOPRIGHT", 6, 0)
-	pointTwo.defaultText = 0
-	
-	self.tabFrame.pointTwo = pointTwo
-	table.insert(self.tabFrame.filters, pointTwo)
-	
-	-- Three
-	pointThree = CreateFrame("EditBox", "ArenaHistorianTalentThree", self.tabFrame, "InputBoxTemplate")
-	pointThree:SetHeight(20)
-	pointThree:SetWidth(20)
-	pointThree:SetNumeric(true)
-	pointThree:SetAutoFocus(false)
-	pointThree:SetScript("OnTextChanged", searchEnemyTalents)
-	pointThree:SetScript("OnTabPressed", function() GUI.tabFrame.pointOne:SetFocus(); end)
-	pointThree:SetScript("OnEditFocusGained", searchFocusGained)
-	pointThree:SetScript("OnEditFocusLost", searchFocusLost)
-	pointThree:ClearAllPoints()
-	pointThree:SetPoint("TOPLEFT", pointTwo, "TOPRIGHT", 6, 0)
-	pointThree.defaultText = 0
-	
-	self.tabFrame.pointThree = pointThree
-	table.insert(self.tabFrame.filters, pointThree)
-	
-	local label = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	label:SetText(L["Talents"])
-	label:SetPoint("TOPLEFT", pointOne, "TOPLEFT", -3, 12)
-	]]
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Strict"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -2)
 
 	-- TEAM NAME SEARCH
 	local search = CreateFrame("EditBox", "AHTeamNameSearch", self.tabFrame, "InputBoxTemplate")
@@ -1524,7 +1932,6 @@ function GUI:CreateFrame()
 	self.tabFrame.historyTwo = histTab
 	table.insert(self.tabFrame.browseButtons, histTab)
 
-	--[[
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
@@ -1537,7 +1944,6 @@ function GUI:CreateFrame()
 	tab.type = "stats"
 	
 	table.insert(self.tabFrame.browseButtons, tab)
-	]]
 	
 	-- 3 VS 3 Buttons
 	local histTab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
@@ -1554,7 +1960,6 @@ function GUI:CreateFrame()
 	self.tabFrame.historyThree = histTab
 	table.insert(self.tabFrame.browseButtons, histTab)
 
-	--[[
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
@@ -1567,7 +1972,6 @@ function GUI:CreateFrame()
 	tab.type = "stats"
 
 	table.insert(self.tabFrame.browseButtons, tab)
-	]]
 
 	-- 5 VS 5 Buttons
 	local histTab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
@@ -1584,7 +1988,6 @@ function GUI:CreateFrame()
 	self.tabFrame.historyFive = histTab
 	table.insert(self.tabFrame.browseButtons, histTab)
 
-	--[[
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
 	tab:SetTextFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
@@ -1597,7 +2000,6 @@ function GUI:CreateFrame()
 	tab.type = "stats"
 	
 	table.insert(self.tabFrame.browseButtons, tab)
-	]]
 	
 	-- Reset button
 	local reset = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
