@@ -109,8 +109,8 @@ ArenaHistLocals = {
 	["TROLL_FEMALE"] = "Female Troll",
 	["TROLL_MALE"] = "Male Troll",
 	
-	["BLOODELF_FEMALE"] = "Female Bloof Elf",
-	["BLOODELF_MALE"] = "Male Bloof Elf",
+	["BLOODELF_FEMALE"] = "Female Blood Elf",
+	["BLOODELF_MALE"] = "Male Blood Elf",
 
 	["DRAENEI_FEMALE"] = "Female Draenei",
 	["DRAENEI_MALE"] = "Male Draenei",

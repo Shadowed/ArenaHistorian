@@ -89,7 +89,7 @@ function Talents.RegisterCallback(self, handler, func)
 	
 	if( type(handler) == "table" and type(func) == "string" ) then
 		assert(3, handler[func], string.format(L["BAD_FUNCTION"], "RegisterCallback"))
-		callbacks[func] = handler
+		callbacks[handler] = func
 	elseif( type(handler) == "function" ) then
 		assert(3, handler, string.format(L["BAD_FUNCTION"], "RegisterCallback"))
 		callbacks[handler] = true
@@ -175,13 +175,13 @@ local function addSpell(spellID, guid, name)
 	enemySpellRecords[name][spellID] = true
 
 	-- New spellID added, trigger callbacks
-	for func, handler in pairs(callbacks) do
+	for handler, func in pairs(callbacks) do
 		if( type(handler) == "table" ) then
 			handler[func](handler, name, spellID)
-		elseif( type(func) == "string" ) then
-			getglobal(func)(name, spellID)
-		else
-			func(name, spellID)
+		elseif( type(handler) == "string" ) then
+			getglobal(handler)(name, spellID)
+		elseif( type(handler) == "function" ) then
+			handler(name, spellID)
 		end
 	end
 end

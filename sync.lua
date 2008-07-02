@@ -25,7 +25,7 @@ local function getTeamID(...)
 	local id = ""
 	for i=1, select("#", ...) do
 		local name, _, _, _, healingDone, damageDone = string.split(",", (select(i, ...)))
-		id = id .. name .. healingDone .. damageDone
+		id = id .. name .. (healingDone or "") .. (damageDone or "")
 	end
 
 	return id
@@ -294,9 +294,7 @@ function Sync:OnCommReceived(prefix, message, distribution, sender)
 		if( not dataType and not data ) then
 			dataType = message
 		end
-		
-		ChatFrame3:AddMessage(string.format("[%s] [%s]", sender, dataType))
-		
+				
 		if( dataType == "REQDATA" ) then
 			data = tonumber(data)
 			if( data ) then

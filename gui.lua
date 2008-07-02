@@ -423,7 +423,7 @@ local function parseTeamData(...)
 	
 	for i=1, select("#", ...) do
 		local name, spec, classToken, race, healingDone, damageDone = string.split(",", (select(i, ...)))
-		
+				
 		local row = {
 			name = name,
 			race = race,
@@ -1022,7 +1022,7 @@ local function updatePage()
 	self.tabFrame.NA:SetText("---------")
 	
 	for key, data in pairs(arenaMap[self.frame.bracket]) do
-		self.tabFrame[key]:SetFormattedText("%.1f%% - %s:%s (%.1f%%)", data.played / #(arenaData[self.frame.bracket]) * 100, GREEN_FONT_COLOR_CODE .. data.won .. FONT_COLOR_CODE_CLOSE, RED_FONT_COLOR_CODE .. data.lost .. FONT_COLOR_CODE_CLOSE, data.won / ( data.won + data.lost ) * 100)
+		self.tabFrame[key]:SetFormattedText("%.1f%% - |cff20ff20%d|r:|cffff2020%d|r (%.1f%%)", data.played / #(arenaData[self.frame.bracket]) * 100, data.won, data.lost, data.won / ( data.won + data.lost ) * 100)
 	end
 end
 
@@ -1499,8 +1499,8 @@ function GUI:CreateFrame()
 
 	-- Create the main window
 	self.frame = CreateFrame("Frame", "ArenaHistorianFrame", UIParent)
-	self.frame.bracket = ArenaHistorian.db.profile.lastBracket
-	self.frame.type = ArenaHistorian.db.profile.lastType
+	self.frame.bracket = ArenaHistorian.db.profile.lastBracket or 2
+	self.frame.type = ArenaHistorian.db.profile.lastType or "history"
 	self.frame:Hide()
 	self.frame:SetScript("OnShow", function(self)
 		-- Hide everything and let the page we're showing show it on it's own
