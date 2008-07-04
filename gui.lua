@@ -497,35 +497,38 @@ function updateStatCache()
 				table.insert(teamData, string.format("%s:%s:%s", playerData.classToken, icon, name))
 			end
 			
-			-- Make sure it stays consistent
-			table.sort(classData, sortID)
-			table.sort(teamData, sortID)
-			
-			local classID = table.concat(classData, ":")
-			local teamID = table.concat(teamData, ";")
-			local talents = {}
-			
-			for _, talentID in pairs(teamData) do
-				table.insert(talents, talentID)
-			end
-			
-			-- Annd compile everything
-			if( not mapStats[classID] ) then
-				mapStats[classID] = {}
-			end
-			
-			if( not mapStats[classID][teamID] ) then
-				mapStats[classID][teamID] = {totalGames = 0, won = 0, lost = 0, gameLength = 0, talents = talents}
-			end
-			
-			local stats = mapStats[classID][teamID]
-			stats.gameLength = stats.gameLength + data.runTime
-			stats.totalGames = stats.totalGames + 1
-			
-			if( data.won ) then
-				stats.won = stats.won + 1
-			else
-				stats.lost = stats.lost + 1
+			-- Make sure it has everyone recorded, if it doesn't it's a bugged game of some type
+			if( #(classData) == self.frame.bracket ) then
+				-- Make sure it stays consistent
+				table.sort(classData, sortID)
+				table.sort(teamData, sortID)
+
+				local classID = table.concat(classData, ":")
+				local teamID = table.concat(teamData, ";")
+				local talents = {}
+
+				for _, talentID in pairs(teamData) do
+					table.insert(talents, talentID)
+				end
+
+				-- Annd compile everything
+				if( not mapStats[classID] ) then
+					mapStats[classID] = {}
+				end
+
+				if( not mapStats[classID][teamID] ) then
+					mapStats[classID][teamID] = {totalGames = 0, won = 0, lost = 0, gameLength = 0, talents = talents}
+				end
+
+				local stats = mapStats[classID][teamID]
+				stats.gameLength = stats.gameLength + data.runTime
+				stats.totalGames = stats.totalGames + 1
+
+				if( data.won ) then
+					stats.won = stats.won + 1
+				else
+					stats.lost = stats.lost + 1
+				end
 			end
 		end
 	end
