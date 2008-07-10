@@ -893,15 +893,13 @@ local function updateStatPage()
 		rowsUsed = rowsUsed + 1
 		row:Show()
 		
-		if( row:GetHeight() > largestRow ) then
-			largestRow = row:GetHeight()
-		end
-	
+		largestRow = max(row:GetHeight(), largestRow)
+		
 		if( id == 1 ) then
 			row:SetPoint("TOPLEFT", self.statFrame, "TOPLEFT", 0, 0)
 		elseif( rowsUsed == 4 ) then
 			heightUsed = heightUsed - largestRow - SPACING
-			largestRow = 0
+			largestRow = row:GetHeight()
 			rowsUsed = 0
 			
 			row:SetPoint("TOPLEFT", self.statFrame, "TOPLEFT", 0, heightUsed)
@@ -1552,7 +1550,7 @@ function GUI:CreateFrame()
 	self.frame.scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -26, 4)
 	self.frame.scroll:SetScript("OnVerticalScroll", function() FauxScrollFrame_OnVerticalScroll(75, updatePage) end)
 	
-	-- STAT FARME
+	-- STAT FRAME
 	local scroll = CreateFrame("ScrollFrame", "ArenaHistorianFrameStatScroll", self.frame, "UIPanelScrollFrameTemplate")
 	
 	-- Actual data is shown on this frame
