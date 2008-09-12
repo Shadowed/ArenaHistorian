@@ -21,6 +21,8 @@ lib\TalentGuess-1.0\TalentGuess-1.0.xml
 localization.enUS.lua
 localization.deDE.lua
 localization.frFR.lua
+localization.zhCN.lua
+localization.zhTW.lua
 
 ArenaHistorian.lua
 sync.lua
