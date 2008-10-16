@@ -3,9 +3,12 @@ local AceGUI = LibStub("AceGUI-3.0")
 --------------------------
 -- Keybinding  		    --
 --------------------------
+
+local WotLK = select(4, GetBuildInfo()) >= 30000
+
 do
 	local Type = "Keybinding"
-	local Version = 8
+	local Version = 10
 
 	local ControlBackdrop  = {
 		bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
@@ -73,14 +76,15 @@ do
 				end
 			end
 	
-			if not self.disabled then
-				self:Fire("OnKeyChanged",keyPressed)
-			end
-	
 			this:EnableKeyboard(false)
 			self.msgframe:Hide()
 			this:UnlockHighlight()
-			self.waitingForKey = nil
+			self.waitingForKey = nil	
+			
+			if not self.disabled then
+				self:SetKey(keyPressed)
+				self:Fire("OnKeyChanged",keyPressed)
+			end
 		end
 	end
 	
@@ -98,6 +102,8 @@ do
 	end
 	
 	local function OnAcquire(self)
+		self:SetLabel("")
+		self:SetKey("")
 	end
 	
 	local function OnRelease(self)
@@ -119,13 +125,33 @@ do
 	end
 	
 	local function SetKey(self, key)
-		self.button:SetText(key or "")
+		if (key or "") == "" then
+			self.button:SetText(NOT_BOUND)
+			if WotLK then
+				self.button:SetNormalFontObject("GameFontNormal")
+			else
+				self.button:SetTextFontObject("GameFontNormal")
+			end
+		else
+			self.button:SetText(key)
+			if WotLK then
+				self.button:SetNormalFontObject("GameFontHighlight")
+			else
+				self.button:SetTextFontObject("GameFontHighlight")
+			end
+		end
 	end
 	
 	local function SetLabel(self, label)
 		self.label:SetText(label or "")
+		if (label or "") == "" then
+			self.alignoffset = nil
+			self:SetHeight(24)
+		else
+			self.alignoffset = 30
+			self:SetHeight(44)
+		end
 	end
-
 
 	local function Constructor()
 		local num  = AceGUI:GetNextWidgetNum(Type)

@@ -1,11 +1,11 @@
-## Interface: 20300
+## Interface: 30000
 ## Title: Arena Historian
 ## Version: $Revision$
 ## Author: Mayen
 ## Notes: Rated arena records
 ## SavedVariables: ArenaHistorianDB
 ## SavedVariablesPerCharacter: ArenaHistoryCustomData, ArenaHistoryData
-## OptionalDeps: LibStub, Ace3, TalentGuess-1.0, OptionHouse, HousingAuthority
+## OptionalDeps: LibStub, Ace3, TalentGuess-1.1
 
 lib\LibStub-1.0\LibStub-1.0.xml
 lib\CallbackHandler-1.0\CallbackHandler-1.0.xml
@@ -16,7 +16,7 @@ lib\AceGUI-3.0\AceGUI-3.0.xml
 lib\AceConfig-3.0\AceConfig-3.0.xml
 lib\AceComm-3.0\AceComm-3.0.xml
 lib\AceEvent-3.0\AceEvent-3.0.xml
-lib\TalentGuess-1.0\TalentGuess-1.0.xml
+lib\TalentGuess-1.1\TalentGuess-1.1.xml
 
 localization.enUS.lua
 localization.deDE.lua

@@ -16,7 +16,7 @@ function Config:OnInitialize()
 			ArenaHistorian.modules.GUI:CreateFrame()
 			ArenaHistorian.modules.GUI.frame:Show()
 		elseif( msg == "config" ) then
-			InterfaceOptionsFrame_OpenToFrame(optionFrame)
+			InterfaceOptionsFrame_OpenToCategory(optionFrame)
 		elseif( msg == "sync" ) then
 			ArenaHistorian.modules.Sync.CreateGUI()
 			ArenaHistorian.modules.Sync.frame:Show()

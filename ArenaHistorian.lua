@@ -45,7 +45,7 @@ function ArenaHistorian:OnInitialize()
 	self.revision = tonumber(string.match("$Revision$", "(%d+)")) or 1
 
 	-- Register the talent guessing lib
-	self.talents = LibStub:GetLibrary("TalentGuess-1.0"):Register()
+	self.talents = LibStub:GetLibrary("TalentGuess-1.1"):Register()
 	
 	-- Set players race/sex
 	playerRaceInfo[UnitName("player")] = string.format("%s_%s", string.upper(select(2, UnitRace("player"))), genderMap[UnitSex("player")])
@@ -222,6 +222,10 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 		zoneText = "NA"
 	elseif( zoneText == L["Ruins of Lordaeron"] ) then
 		zoneText = "RoL"
+	elseif( zoneText == L["Dalaran Arena"] ) then
+		zoneText = "DA"
+	elseif( zoneText == L["The Ring of Valor"] ) then
+		zoneText = "RoV"
 	else
 		zoneText = ""
 	end

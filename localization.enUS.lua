@@ -41,9 +41,9 @@ ArenaHistLocals = {
 	["Strict"] = "Strict",
 	["Only show teams with all the selected classes in them."] = "Only show teams with all the selected classes in them.",
 	
-	["Show loses"] = "Show loses",
-	["Show wins"] = "Show wins",
-	["Show draws"] = "Show draws",
+	["Lose"] = "Lose",
+	["Win"] = "Win",
+	["Draw"] = "Draws",
 	
 	-- Syncing
 	["Deny"] = "Deny",
@@ -84,17 +84,22 @@ ArenaHistLocals = {
 		["BLOODELF_FEMALE"] = "Blood Elf",
 		["TAUREN_FEMALE"] = "Tauren",
 		["DRAENEI_FEMALE"] = "Draenei",
+		
 	},
 	
 	-- Zone -> abbreviation
 	["BEA"] = "BEA",
 	["NA"] = "NA",
 	["RoL"] = "RoL",
+	["DA"] = "DA",
+	["RoV"] = "RoV",
 	
 	-- Arenas
 	["Blade's Edge Arena"] = "Blade's Edge Arena",
 	["Nagrand Arena"] = "Nagrand Arena",
 	["Ruins of Lordaeron"] = "Ruins of Lordaeron",
+	["The Ring of Valor"] = "The Ring of Valor",
+	["Dalaran Arena"] = "Dalaran Arena",
 	
 	-- Token -> Text
 	["HUMAN_FEMALE"] = "Female Human",
@@ -136,6 +141,7 @@ ArenaHistLocals = {
 	["MAGE"] = "Mage",
 	["HUNTER"] = "Hunter",
 	["ROGUE"] = "Rogue",
+	["DEATHKNIGHT"] = "Death Knight",
 	
 	-- Tree names
 	["Elemental"] = "Elemental",
@@ -165,6 +171,9 @@ ArenaHistLocals = {
 	["Discipline"] = "Discipline",
 	["Holy"] = "Holy",
 	["Shadow"] = "Shadow",
+	["Frost"] = "Frost",
+	["Blood"] = "Blood",
+	["Unholy"] = "Unholy",
 	
 	
 	-- Config

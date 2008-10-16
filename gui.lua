@@ -35,6 +35,7 @@ local TREE_ICONS = {
 	["PALADIN"] = {"Spell_Holy_HolyBolt", "Spell_Holy_DevotionAura", "Spell_Holy_AuraOfLight"},
 	["HUNTER"] = {"Ability_Hunter_BeastTaming", "Ability_Marksmanship", "Ability_Hunter_SwiftStrike"},
 	["PRIEST"] = {"Spell_Holy_WordFortitude", "Spell_Holy_HolyBolt", "Spell_Shadow_ShadowWordPain"},
+	["DEATHKNIGHT"] = {"Spell_Shadow_BloodBoil", "Spell_Frost_FrostNova", "Spell_Shadow_ShadeTrueSight"}
 }
 
 -- Tree names
@@ -48,6 +49,7 @@ local TREE_NAMES = {
 	["PALADIN"] = {L["Holy"], L["Protection"], L["Retribution"]},
 	["HUNTER"] = {L["Beast Mastery"], L["Marksmanship"], L["Survival"]},
 	["PRIEST"] = {L["Discipline"], L["Holy"], L["Shadow"]},
+	["DEATHKNIGHT"] = {L["Blood"], L["Frost"], L["Unholy"]},
 }
 
 function GUI:GetSpecName(class, spec)
@@ -299,17 +301,17 @@ local function popupRaceRequest(frame, bracket, teamName, name)
 		popup.sex = CreateFrame("Frame", "AHCustomSexDropdown", popup, "UIDropDownMenuTemplate")
 		popup.sex:SetPoint("TOPLEFT", popup, "TOPLEFT", -10, -4)
 		popup.sex:SetScript("OnShow", function(self)
-			UIDropDownMenu_Initialize(AHCustomSexDropdown, initSexDropdown)
-			UIDropDownMenu_SetWidth(70, AHCustomSexDropdown)
-			UIDropDownMenu_SetSelectedValue(AHCustomSexDropdown, self.sex)
+			UIDropDownMenu_Initialize(self, initSexDropdown)
+			UIDropDownMenu_SetWidth(self, 70)
+			UIDropDownMenu_SetSelectedValue(self, self.sex)
 		end)
 		
 		popup.race = CreateFrame("Frame", "AHCustomRaceDropdown", popup, "UIDropDownMenuTemplate")
 		popup.race:SetPoint("TOPLEFT", popup, "TOPLEFT", 85, -4)
 		popup.race:SetScript("OnShow", function(self)
-			UIDropDownMenu_Initialize(AHCustomRaceDropdown, initRaceDropdown)
-			UIDropDownMenu_SetWidth(100, AHCustomRaceDropdown)
-			UIDropDownMenu_SetSelectedValue(AHCustomRaceDropdown, self.race)
+			UIDropDownMenu_Initialize(self, initRaceDropdown)
+			UIDropDownMenu_SetWidth(self, 100)
+			UIDropDownMenu_SetSelectedValue(self, self.race)
 		end)
 		
 		popup.confirmSave = CreateFrame("Button", nil, popup, "UIPanelButtonGrayTemplate")
@@ -638,8 +640,7 @@ local function setupTeamInfo(nameLimit, fsLimit, teamRows, teamData, teamName, t
 				row.name.tooltip = string.format(L["%s\nDamage (|cffffffff%s|r)\nHealing (|cffffffff%s|r)"], data.name, formatNumber(data.damageDone), formatNumber(data.healingDone))
 			end
 			
-			row.name:SetText(data.name)
-			row.name:SetTextColor(RAID_CLASS_COLORS[data.classToken].r, RAID_CLASS_COLORS[data.classToken].g, RAID_CLASS_COLORS[data.classToken].b)
+			row.name:SetFormattedText("|cff%02x%02x%02x%s|r", RAID_CLASS_COLORS[data.classToken].r * 255, RAID_CLASS_COLORS[data.classToken].g * 255, RAID_CLASS_COLORS[data.classToken].b * 255, data.name)
 			row.name:SetWidth(nameLimit)
 			
 			row.name.fs:SetHeight(15)
@@ -757,7 +758,7 @@ local function setStatPage(id, statData, ...)
 		
 		-- Create a full make up for the tooltip
 		if( i > 1 ) then
-			makeup = makeup .. "/" .. wrapClassColor(classToken, text)
+			makeup = makeup .. "|cffffffff/|r" .. wrapClassColor(classToken, text)
 			fullMakeup = fullMakeup .. " / " .. L[classToken]
 		else
 			makeup = wrapClassColor(classToken, text)
@@ -959,13 +960,17 @@ local function updateHistoryPage()
 					zone = L["Ruins of Lordaeron"]
 				elseif( matchInfo.zone == "NA" ) then
 					zone = L["Nagrand Arena"]
+				elseif( matchInfo.zone == "DA" ) then
+					zone = L["Dalaran Arena"]
+				elseif( matchInfo.zone == "RoV" ) then
+					zone = L["The Ring of Valor"]
 				end
 
 				-- Delete ID
 				row.deleteButton.id = matchInfo.recordID				
 				
 				-- Row number
-				row.rowInfo:SetFormattedText("[%d]", (#(history) + 1) - id)
+				row.rowInfo:SetFormattedText("|cffffffff[%d]|r", (#(history) + 1) - id)
 				row.rowInfo.tooltip = string.format(L["Date: %s"], date("%B %Y, %A %d, %I:%M %p", matchInfo.time))
 
 				-- Match info
@@ -1361,7 +1366,7 @@ local function createTeamRows(frame, firstParent)
 		-- Char name
 		row.name = CreateFrame("Button", nil, row)
 		row.name:SetPushedTextOffset(0, 0)
-		row.name:SetTextFontObject(GameFontHighlightSmall)
+		row.name:SetNormalFontObject(GameFontHighlightSmall)
 		row.name:SetHeight(15)
 		row.name:SetWidth(55)
 		row.name:SetScript("OnEnter", OnEnter)
@@ -1432,12 +1437,11 @@ local function createTeamInfo(parent)
 		
 	-- Deletion
 	frame.deleteButton = CreateFrame("Button", nil, frame)
-	frame.deleteButton:SetTextFontObject(GameFontNormalSmall)
-	frame.deleteButton:SetTextColor(1, 1, 1)
+	frame.deleteButton:SetNormalFontObject(GameFontNormalSmall)
 	frame.deleteButton:SetPushedTextOffset(0,0)
 	frame.deleteButton:SetHeight(18)
 	frame.deleteButton:SetWidth(18)
-	frame.deleteButton:SetFormattedText("[%s%s%s]", RED_FONT_COLOR_CODE, "X", FONT_COLOR_CODE_CLOSE)
+	frame.deleteButton:SetFormattedText("|cffffffff[|r%s%s%s|cffffffff]|r", RED_FONT_COLOR_CODE, "X", FONT_COLOR_CODE_CLOSE)
 	frame.deleteButton:SetScript("OnClick", deleteRecord)
 	frame.deleteButton:SetScript("OnEnter", OnEnter)
 	frame.deleteButton:SetScript("OnLeave", OnLeave)
@@ -1446,8 +1450,7 @@ local function createTeamInfo(parent)
 
 	-- Row info
 	frame.rowInfo = CreateFrame("Button", nil, frame)
-	frame.rowInfo:SetTextFontObject(GameFontNormalSmall)
-	frame.rowInfo:SetTextColor(1, 1, 1)
+	frame.rowInfo:SetNormalFontObject(GameFontNormalSmall)
 	frame.rowInfo:SetPushedTextOffset(0,0)
 	frame.rowInfo:SetHeight(18)
 	frame.rowInfo:SetWidth(18)
@@ -1457,6 +1460,8 @@ local function createTeamInfo(parent)
 
 	return frame
 end
+
+-- string.format("|cff%02x%02x%02x", r*255, g*255, b*255)
 
 local function createStatRow(parent)
 	local frame = CreateFrame("Frame", nil, parent)
@@ -1469,8 +1474,7 @@ local function createStatRow(parent)
 	
 	-- Class combo text
 	frame.makeup = CreateFrame("Button", nil, frame)
-	frame.makeup:SetTextFontObject(GameFontNormalSmall)
-	frame.makeup:SetTextColor(1, 1, 1)
+	frame.makeup:SetNormalFontObject(GameFontNormalSmall)
 	frame.makeup:SetPushedTextOffset(0,0)
 	frame.makeup:SetHeight(18)
 	frame.makeup:SetWidth(100)
@@ -1548,7 +1552,7 @@ function GUI:CreateFrame()
 	self.frame.scroll:SetScript("OnShow", resetScrollBar)
 	self.frame.scroll:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 26, -24)
 	self.frame.scroll:SetPoint("BOTTOMRIGHT", self.frame, "BOTTOMRIGHT", -26, 4)
-	self.frame.scroll:SetScript("OnVerticalScroll", function() FauxScrollFrame_OnVerticalScroll(75, updatePage) end)
+	self.frame.scroll:SetScript("OnVerticalScroll", function(self, step) FauxScrollFrame_OnVerticalScroll(self, step, 75, updatePage) end)
 	
 	-- STAT FRAME
 	local scroll = CreateFrame("ScrollFrame", "ArenaHistorianFrameStatScroll", self.frame, "UIPanelScrollFrameTemplate")
@@ -1643,7 +1647,7 @@ function GUI:CreateFrame()
 	filter.reset = resetCheck
 	filter:SetScript("OnClick", searchZone)
 	filter:SetScript("OnHide", resetCheck)
-	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -100)
+	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -75)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
 	filter.text:SetText(L["Blade's Edge Arena"])
@@ -1699,6 +1703,48 @@ function GUI:CreateFrame()
 	
 	self.tabFrame.RoL = RoL
 
+	-- Dalaran Arena
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = "DA"
+	filter:SetScript("OnClick", searchZone)
+	filter:SetScript("OnHide", resetCheck)
+	filter:SetPoint("TOPLEFT", self.tabFrame.RoL, "TOPLEFT", -FILTER_TEXT_X, -16)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["Dalaran Arena"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.DAFilter = filter
+
+	local DA = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	DA:SetPoint("TOPLEFT", filter, "TOPLEFT", FILTER_TEXT_X, FILTER_TEXT_Y)
+	
+	self.tabFrame.DA = DA
+
+	--  The Ring of Valor
+	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
+	filter:SetHeight(18)
+	filter:SetWidth(18)
+	filter:SetChecked(true)
+	filter.type = "RoV"
+	filter:SetScript("OnClick", searchZone)
+	filter:SetScript("OnHide", resetCheck)
+	filter:SetPoint("TOPLEFT", self.tabFrame.DA, "TOPLEFT", -FILTER_TEXT_X, -16)
+	
+	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
+	filter.text:SetText(L["The Ring of Valor"])
+	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
+	
+	self.tabFrame.RoVFilter = filter
+
+	local RoV = self.tabFrame:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+	RoV:SetPoint("TOPLEFT", filter, "TOPLEFT", FILTER_TEXT_X, FILTER_TEXT_Y)
+	
+	self.tabFrame.RoV = RoV
+
 	-- WON FILTER
 	local filter = CreateFrame("CheckButton", nil, self.tabFrame, "OptionsCheckButtonTemplate")
 	filter:SetHeight(18)
@@ -1707,10 +1753,10 @@ function GUI:CreateFrame()
 	filter.type = 1
 	filter.reset = resetResultsCheck
 	filter:SetScript("OnClick", searchResults)
-	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -200)
+	filter:SetPoint("TOPLEFT", self.tabFrame, "TOPLEFT", 1, -238)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Show wins"])
+	filter.text:SetText(L["Win"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
 	
 	self.tabFrame.wonFilter = filter
@@ -1724,10 +1770,10 @@ function GUI:CreateFrame()
 	filter.type = -1
 	filter.reset = resetResultsCheck
 	filter:SetScript("OnClick", searchResults)
-	filter:SetPoint("TOPLEFT", self.tabFrame.wonFilter, "TOPLEFT", 0, -16)
+	filter:SetPoint("TOPLEFT", self.tabFrame.wonFilter.text, "TOPLEFT", 24, 3)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Show loses"])
+	filter.text:SetText(L["Lose"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
 	
 	self.tabFrame.lostFilter = filter
@@ -1741,10 +1787,10 @@ function GUI:CreateFrame()
 	filter.type = 0
 	filter.reset = resetResultsCheck
 	filter:SetScript("OnClick", searchResults)
-	filter:SetPoint("TOPLEFT", self.tabFrame.lostFilter, "TOPLEFT", 0, -16)
+	filter:SetPoint("TOPLEFT", self.tabFrame.lostFilter.text, "TOPLEFT", 27, 3)
 	
 	filter.text = filter:CreateFontString(nil, "ARTWORK", "GameFontNormalSmall")
-	filter.text:SetText(L["Show draws"])
+	filter.text:SetText(L["Draw"])
 	filter.text:SetPoint("TOPLEFT", filter, "TOPRIGHT", -1, -3)
 	
 	self.tabFrame.wonFilter = filter
@@ -1920,7 +1966,7 @@ function GUI:CreateFrame()
 	
 	-- 2 VS 2 Buttons
 	local histTab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	histTab:SetTextFontObject(GameFontHighlightSmall)
+	histTab:SetNormalFontObject(GameFontHighlightSmall)
 	histTab:SetHighlightFontObject(GameFontHighlightSmall)
 	histTab:SetScript("OnClick", setShownPage)
 	histTab:SetWidth(90)
@@ -1934,7 +1980,7 @@ function GUI:CreateFrame()
 	table.insert(self.tabFrame.browseButtons, histTab)
 
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	tab:SetTextFontObject(GameFontHighlightSmall)
+	tab:SetNormalFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownPage)
 	tab:SetWidth(45)
@@ -1948,7 +1994,7 @@ function GUI:CreateFrame()
 	
 	-- 3 VS 3 Buttons
 	local histTab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	histTab:SetTextFontObject(GameFontHighlightSmall)
+	histTab:SetNormalFontObject(GameFontHighlightSmall)
 	histTab:SetHighlightFontObject(GameFontHighlightSmall)
 	histTab:SetScript("OnClick", setShownPage)
 	histTab:SetWidth(90)
@@ -1962,7 +2008,7 @@ function GUI:CreateFrame()
 	table.insert(self.tabFrame.browseButtons, histTab)
 
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	tab:SetTextFontObject(GameFontHighlightSmall)
+	tab:SetNormalFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownPage)
 	tab:SetWidth(45)
@@ -1976,7 +2022,7 @@ function GUI:CreateFrame()
 
 	-- 5 VS 5 Buttons
 	local histTab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	histTab:SetTextFontObject(GameFontHighlightSmall)
+	histTab:SetNormalFontObject(GameFontHighlightSmall)
 	histTab:SetHighlightFontObject(GameFontHighlightSmall)
 	histTab:SetScript("OnClick", setShownPage)
 	histTab:SetWidth(90)
@@ -1990,7 +2036,7 @@ function GUI:CreateFrame()
 	table.insert(self.tabFrame.browseButtons, histTab)
 
 	local tab = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	tab:SetTextFontObject(GameFontHighlightSmall)
+	tab:SetNormalFontObject(GameFontHighlightSmall)
 	tab:SetHighlightFontObject(GameFontHighlightSmall)
 	tab:SetScript("OnClick", setShownPage)
 	tab:SetWidth(45)
@@ -2004,13 +2050,13 @@ function GUI:CreateFrame()
 	
 	-- Reset button
 	local reset = CreateFrame("Button", nil, self.tabFrame, "UIPanelButtonGrayTemplate")
-	reset:SetTextFontObject(GameFontHighlightSmall)
+	reset:SetNormalFontObject(GameFontHighlightSmall)
 	reset:SetHighlightFontObject(GameFontHighlightSmall)
 	reset:SetScript("OnClick", function() resetFilters(); updateFilters(); updatePage(); end)
 	reset:SetWidth(90)
 	reset:SetHeight(14)
 	reset:SetText(L["Reset filters"])
-	reset:SetPoint("TOPLEFT", self.tabFrame.historyFive, "BOTTOMLEFT", 0, -6)
+	reset:SetPoint("TOPLEFT", self.tabFrame.historyFive, "BOTTOMLEFT", 0, -3)
 	
 	-- Create the actual team displays
 	self.rows = {}
