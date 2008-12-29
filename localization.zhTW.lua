@@ -35,8 +35,8 @@ if(GetLocale()=="zhTW") then
 		
 		["OK"] = "OK",
 		
-		["Male"] = "Male",
-		["Female"] = "Female",
+		["Male"] = "男性",
+		["Female"] = "女性",
 		
 		["Hold ALT and click the button to delete this arena record."] = "按住 ALT 點 X 刪除這筆紀錄.",
 		
@@ -94,42 +94,46 @@ if(GetLocale()=="zhTW") then
 		["BEA"] = "BEA",
 		["NA"] = "NA",
 		["RoL"] = "RoL",
+		["DA"] = "DA",
+		["ROV"] = "ROV",
 		
 		-- Arenas
 		["Blade's Edge Arena"] = "劍刃競技場",
 		["Nagrand Arena"] = "納葛蘭競技場",
 		["Ruins of Lordaeron"] = "羅德隆廢墟",
+		["The Ring of Valor"] = "勇武之環",
+		["Dalaran Arena"] = "達拉然競技場",
 		
 		-- Token -> Text
-		["HUMAN_FEMALE"] = "女 人類",
-		["HUMAN_MALE"] = "男 人類",
+		["HUMAN_FEMALE"] = "人類女性",
+		["HUMAN_MALE"] = "人類男性",
 		
-		["DWARF_FEMALE"] = "女 矮人",
-		["DWARF_MALE"] = "男 矮人",
+		["DWARF_FEMALE"] = "矮人女性",
+		["DWARF_MALE"] = "矮人男性",
 		
-		["NIGHTELF_FEMALE"] = "女 夜精靈",
-		["NIGHTELF_MALE"] = "男 夜精靈",
+		["NIGHTELF_FEMALE"] = "夜精靈女性",
+		["NIGHTELF_MALE"] = "夜精靈男性",
 		
-		["TROLL_FEMALE"] = "女 食人妖",
-		["TROLL_MALE"] = "男 食人妖",
+		["TROLL_FEMALE"] = "食人妖女性",
+		["TROLL_MALE"] = "食人妖男性",
 		
-		["BLOODELF_FEMALE"] = "女 血精靈",
-		["BLOODELF_MALE"] = "男 血精靈",
+		["BLOODELF_FEMALE"] = "血精靈女性",
+		["BLOODELF_MALE"] = "血精靈男性",
 		
-		["DRAENEI_FEMALE"] = "女 德萊尼",
-		["DRAENEI_MALE"] = "男 德萊尼",
+		["DRAENEI_FEMALE"] = "德萊尼女性",
+		["DRAENEI_MALE"] = "德萊尼男性",
 		
-		["GNOME_FEMALE"] = "女 地精",
-		["GNOME_MALE"] = "男 地精",
+		["GNOME_FEMALE"] = "地精女性",
+		["GNOME_MALE"] = "地精男性",
 		
-		["SCOURGE_FEMALE"] = "女 不死族",
-		["SCOURGE_MALE"] = "男 不死族",
+		["SCOURGE_FEMALE"] = "不死族女性",
+		["SCOURGE_MALE"] = "不死族男性",
 		
-		["ORC_FEMALE"] = "女 獸人",
-		["ORC_MALE"] = "男 獸人",
+		["ORC_FEMALE"] = "獸人女性",
+		["ORC_MALE"] = "獸人男性",
 		
-		["TAUREN_FEMALE"] = "女 牛頭人",
-		["TAUREN_MALE"] = "男 牛頭人",
+		["TAUREN_FEMALE"] = "牛頭人女性",
+		["TAUREN_MALE"] = "牛頭人男性",
 		
 		["WARRIOR"] = "戰士",
 		["DRUID"] = "德魯伊",
@@ -140,6 +144,7 @@ if(GetLocale()=="zhTW") then
 		["MAGE"] = "法師",
 		["HUNTER"] = "獵人",
 		["ROGUE"] = "盜賊",
+		["DEATHKNIGHT"] = "死亡騎士",
 		
 		-- Tree names
 		["Elemental"] = "元素",
@@ -169,6 +174,9 @@ if(GetLocale()=="zhTW") then
 		["Discipline"] = "誡律",
 		["Holy"] = "神聖",
 		["Shadow"] = "暗影",
+		["Frost"] = "冰霜",
+		["Blood"] = "血魄",
+		["Unholy"] = "穢邪",
 		
 		
 		-- Config

@@ -1,4 +1,7 @@
---[[ $Id: AceEvent-3.0.lua 60131 2008-02-03 13:03:56Z nevcairiel $ ]]
+--- AceEvent-3.0 provides event registration and secure dispatching.
+-- @class file
+-- @name AceEvent-3.0
+-- @release $Id: AceEvent-3.0.lua 710 2008-12-19 10:14:39Z nevcairiel $
 local MAJOR, MINOR = "AceEvent-3.0", 3
 local AceEvent = LibStub:NewLibrary(MAJOR, MINOR)
 

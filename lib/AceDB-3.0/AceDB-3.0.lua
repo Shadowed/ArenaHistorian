@@ -1,4 +1,7 @@
---[[ $Id: AceDB-3.0.lua 667 2008-06-11 14:34:58Z nevcairiel $ ]]
+--- AceDB-3.0 allows you to create profiles and smart default values for the SavedVariables of your addon.
+-- @class file
+-- @name AceDB-3.0
+-- @release $Id: AceDB-3.0.lua 710 2008-12-19 10:14:39Z nevcairiel $
 local ACEDB_MAJOR, ACEDB_MINOR = "AceDB-3.0", 8
 local AceDB, oldminor = LibStub:NewLibrary(ACEDB_MAJOR, ACEDB_MINOR)
 
