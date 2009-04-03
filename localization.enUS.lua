@@ -1,5 +1,6 @@
 ArenaHistLocals = {
 	["Arena Historian"] = "Arena Historian",
+	["Unknown"] = "Unknown",
 	
 	["%dvs%d History"] = "%dvs%d History",
 	["Stats"] = "Stats",

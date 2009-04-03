@@ -1,7 +1,7 @@
 --- AceConfigCmd-3.0 handles access to optionstable through the "command line" interface via the ChatFrames.
 -- @class file
 -- @name AceConfigCmd-3.0
--- @release $Id: AceConfigCmd-3.0.lua 710 2008-12-19 10:14:39Z nevcairiel $
+-- @release $Id: AceConfigCmd-3.0.lua 752 2009-03-13 09:48:24Z nevcairiel $
 
 --[[
 AceConfigCmd-3.0
@@ -17,7 +17,7 @@ REQUIRES: AceConsole-3.0 for command registration (loaded on demand)
 -- TODO: plugin args
 
 
-local MAJOR, MINOR = "AceConfigCmd-3.0", 6
+local MAJOR, MINOR = "AceConfigCmd-3.0", 8
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not lib then return end
@@ -222,8 +222,9 @@ local function showhelp(info, inputpos, tab, noHead)
 			if v.type == "group" and pickfirstset(v.cmdInline, v.inline, false) then
 				print("  "..(desc or name)..":")
 				showhelp(info, inputpos, v, true)
-			else
-				print("  |cffffff78"..k.."|r - "..(desc or name or ""))
+			elseif v.type ~= "description" and v.type ~= "header" then
+				local key = k:gsub(" ", "_")
+				print("  |cffffff78"..key.."|r - "..(desc or name or ""))
 			end
 		end
 	end
@@ -347,7 +348,7 @@ local function handle(info, inputpos, tab, depth, retfalse)
 					return	-- done, name was found in inline group
 				end
 			-- matching name and not a inline group
-			elseif strlower(arg)==strlower(k) then
+			elseif strlower(arg)==strlower(k:gsub(" ", "_")) then
 				info[depth+1] = k
 				return handle(info,nextpos,v,depth+1)
 			end

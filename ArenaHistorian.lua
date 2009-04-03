@@ -1,5 +1,9 @@
 --[[ 
+<<<<<<< .mine
+	Arena Historian Mayen/Selari (Horde) from Illidan (US) PvP
+=======
 	Arena Historian Mayen (Horde) from Illidan (US) PvP
+>>>>>>> .r1184
 ]]
 
 ArenaHistorian = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")

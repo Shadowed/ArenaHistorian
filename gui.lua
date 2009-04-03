@@ -556,7 +556,9 @@ local function updateCache()
 			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
 				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, eServer, pServer = string.split(":", matchData)
-				
+				if( arenaZone == "" ) then
+					arenaZone = L["Unknown"]
+				end
 				-- Generate the player and enemy team mate info
 				local playerTeam, playerTeamID, playerTeamClassID = parseTeamData(string.split(":", playerTeam))
 				local enemyTeam, enemyTeamID, enemyTeamClassID = parseTeamData(string.split(":", enemyTeam))
@@ -1026,9 +1028,13 @@ local function updatePage()
 	self.tabFrame.RoL:SetText("---------")
 	self.tabFrame.BEA:SetText("---------")
 	self.tabFrame.NA:SetText("---------")
+	self.tabFrame.DA:SetText("---------")
+	self.tabFrame.RoV:SetText("---------")
 	
 	for key, data in pairs(arenaMap[self.frame.bracket]) do
-		self.tabFrame[key]:SetFormattedText("%.1f%% - |cff20ff20%d|r:|cffff2020%d|r (%.1f%%)", data.played / #(arenaData[self.frame.bracket]) * 100, data.won, data.lost, data.won / ( data.won + data.lost ) * 100)
+		if( self.tabFrame[key] ) then
+			self.tabFrame[key]:SetFormattedText("%.1f%% - |cff20ff20%d|r:|cffff2020%d|r (%.1f%%)", data.played / #(arenaData[self.frame.bracket]) * 100, data.won, data.lost, data.won / ( data.won + data.lost ) * 100)
+		end
 	end
 end
 
@@ -1050,7 +1056,7 @@ local function updateFilters()
 		matchInfo.hidden = true
 
 		-- Fesults of the match (won/lost/draw) and if we should show this map
-		if( filters.results[matchInfo.result] and filters[matchInfo.zone] ) then
+		if( filters.results[matchInfo.result] and ( matchInfo.zone == L["Unknown"] or filters[matchInfo.zone] ) ) then
 			-- Team name amtches
 			if( not filters.teamName or string.match(string.lower(matchInfo.eTeamName), filters.teamName) ) then
 				-- Enemies rating is above or below what we provided

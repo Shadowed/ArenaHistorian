@@ -1,9 +1,9 @@
---- AceComm-3.0 allows you to send messages of unlimited length over the addon comm channels.
--- It'll automatically split the messages into multiple parts and rebuild them on the receiving end.
--- Of course, ChatThrottleLib is being used to avoid being disconnected by the server.
+--- **AceComm-3.0** allows you to send messages of unlimited length over the addon comm channels.
+-- It'll automatically split the messages into multiple parts and rebuild them on the receiving end.\\
+-- **ChatThrottleLib** is of course being used to avoid being disconnected by the server.
 -- @class file
 -- @name AceComm-3.0
--- @release $Id: AceComm-3.0.lua 710 2008-12-19 10:14:39Z nevcairiel $
+-- @release $Id: AceComm-3.0.lua 764 2009-04-03 18:15:39Z nevcairiel $
 
 --[[ AceComm-3.0
 
@@ -11,7 +11,7 @@ TODO: Time out old data rotting around from dead senders? Not a HUGE deal since 
 
 ]]
 
-local MAJOR, MINOR = "AceComm-3.0", 4
+local MAJOR, MINOR = "AceComm-3.0", 5
 	
 local AceComm,oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 
@@ -39,12 +39,9 @@ AceComm.multipart_reassemblers = AceComm.multipart_reassemblers or {} -- e.g. "P
 -- the multipart message spool: indexed by a combination of sender+distribution+
 AceComm.multipart_spool = AceComm.multipart_spool or {} 
 
-
------------------------------------------------------------------------
--- API RegisterComm(prefix, method)
--- - prefix       (string) A printable character (\032-\255) classification of the message (typically AddonName or AddonNameEvent)
--- - method       Callback to call on message reception: Function reference, or method name (string) to call on self. Defaults to "OnCommReceived"
-
+--- Register for Addon Traffic on a specified prefix
+-- @param prefix A printable character (\032-\255) classification of the message (typically AddonName or AddonNameEvent)
+-- @param method Callback to call on message reception: Function reference, or method name (string) to call on self. Defaults to "OnCommReceived"
 function AceComm:RegisterComm(prefix, method)
 	if method == nil then
 		method = "OnCommReceived"
@@ -53,15 +50,12 @@ function AceComm:RegisterComm(prefix, method)
 	return AceComm._RegisterComm(self, prefix, method)	-- created by CallbackHandler
 end
 
-
------------------------------------------------------------------------
--- API SendCommMessage(prefix, text, distribution, target, prio)
--- - prefix       (string) A printable character (\032-\255) classification of the message (typically AddonName or AddonNameEvent)
--- - text         (string) Data to send, nils (\000) not allowed. Any length.
--- - distribution (string) Addon channel, e.g. "RAID", "GUILD", etc; see SendAddonMessage API
--- - target       (string) Destination for some distributions; see SendAddonMessage API
--- - prio         (string) OPTIONAL: ChatThrottleLib priority, "BULK", "NORMAL" or "ALERT". Defaults to "NORMAL".
-
+--- Send a message over the Addon Channel
+-- @param prefix A printable character (\032-\255) classification of the message (typically AddonName or AddonNameEvent)
+-- @param text Data to send, nils (\000) not allowed. Any length.
+-- @param distribution Addon channel, e.g. "RAID", "GUILD", etc; see SendAddonMessage API
+-- @param target Destination for some distributions; see SendAddonMessage API
+-- @param prio OPTIONAL: ChatThrottleLib priority, "BULK", "NORMAL" or "ALERT". Defaults to "NORMAL".
 function AceComm:SendCommMessage(prefix, text, distribution, target, prio)
 	prio = prio or "NORMAL"	-- pasta's reference implementation had different prio for singlepart and multipart, but that's a very bad idea since that can easily lead to out-of-sequence delivery!
 	if not( type(prefix)=="string" and
@@ -114,7 +108,7 @@ end
 ----------------------------------------
 
 do
-	local compost = setmetatable({}, {__mode=="k"})
+	local compost = setmetatable({}, {__mode = "k"})
 	local function new()
 		local t = next(compost)
 		if t then 
@@ -143,7 +137,7 @@ do
 		end
 		--]]
 		
-		spool[key] = message	-- plain string for now
+		spool[key] = message  -- plain string for now
 	end
 
 	function AceComm:OnReceiveMultipartNext(prefix, message, distribution, sender)
@@ -159,9 +153,9 @@ do
 		if type(olddata)~="table" then
 			-- ... but what we have is not a table. So make it one. (Pull a composted one if available)
 			local t = new()
-			t[1] = olddata		-- add old data as first string
-			t[2] = message      -- and new message as second string
-			spool[key] = t		-- and put the table in the spool instead of the old string
+			t[1] = olddata    -- add old data as first string
+			t[2] = message    -- and new message as second string
+			spool[key] = t    -- and put the table in the spool instead of the old string
 		else
 			tinsert(olddata, message)
 		end
@@ -179,11 +173,11 @@ do
 
 		spool[key] = nil
 		
-		if type(olddata)=="table" then
+		if type(olddata) == "table" then
 			-- if we've received a "next", the spooled data will be a table for rapid & garbage-free tconcat
 			tinsert(olddata, message)
 			AceComm.callbacks:Fire(prefix, tconcat(olddata, ""), distribution, sender)
-			compost[olddata]=true
+			compost[olddata] = true
 		else
 			-- if we've only received a "first", the spooled data will still only be a string
 			AceComm.callbacks:Fire(prefix, olddata..message, distribution, sender)
@@ -233,10 +227,6 @@ function AceComm.callbacks:OnUnused(target, prefix)
 	AceComm.multipart_reassemblers[prefix..MSG_MULTI_LAST] = nil
 end
 
-----------------------------------------
--- Event driver
-----------------------------------------
-
 local function OnEvent(this, event, ...)
 	if event == "CHAT_MSG_ADDON" then
 		local prefix,message,distribution,sender = ...
@@ -272,6 +262,8 @@ local mixins = {
 	"SendCommMessage",
 }
 
+--- Embeds AceComm-3.0 into the target object making the functions from the mixins list available on target:..
+-- @param target target object to embed AceComm-3.0 in
 function AceComm:Embed(target)
 	for k, v in pairs(mixins) do
 		target[v] = self[v]
