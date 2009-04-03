@@ -1,8 +1,5 @@
 --- AceAddon-3.0 provides a template for creating addon objects.
--- This file is still on the TODO for complete documentation.
--- @class file
--- @name AceAddon-3.0
--- @release $Id: AceAddon-3.0.lua 710 2008-12-19 10:14:39Z nevcairiel $
+-- @release $Id: AceAddon-3.0.lua 725 2009-01-04 18:53:40Z nevcairiel $
 local MAJOR, MINOR = "AceAddon-3.0", 5
 local AceAddon, oldminor = LibStub:NewLibrary(MAJOR, MINOR)
 

@@ -1,8 +1,8 @@
 --- AceDBOptions-3.0 provides a universal AceConfig options screen for managing AceDB-3.0 profiles.
 -- @class file
 -- @name AceDBOptions-3.0
--- @release $Id: AceDBOptions-3.0.lua 714 2008-12-28 01:23:34Z nevcairiel $
-local ACEDBO_MAJOR, ACEDBO_MINOR = "AceDBOptions-3.0", 8
+-- @release $Id: AceDBOptions-3.0.lua 726 2009-01-06 14:41:57Z nevcairiel $
+local ACEDBO_MAJOR, ACEDBO_MINOR = "AceDBOptions-3.0", 10
 local AceDBOptions, oldminor = LibStub:NewLibrary(ACEDBO_MAJOR, ACEDBO_MINOR)
 
 if not AceDBOptions then return end -- No upgrade needed
@@ -94,7 +94,24 @@ elseif LOCALE == "koKR" then
 	L["profiles"] = "프로필"
 	L["profiles_sub"] = "프로필 설정"
 elseif LOCALE == "esES" then
-	
+	L["default"] = "Por defecto"
+	L["intro"] = "Puedes cambiar el perfil activo de tal manera que cada personaje tenga diferentes configuraciones."
+	L["reset_desc"] = "Reinicia el perfil actual a los valores por defectos, en caso de que se haya estropeado la configuración o quieras volver a empezar de nuevo."
+	L["reset"] = "Reiniciar Perfil"
+	L["reset_sub"] = "Reinicar el perfil actual al de por defecto"
+	L["choose_desc"] = "Puedes crear un nuevo perfil introduciendo un nombre en el recuadro o puedes seleccionar un perfil de los ya existentes."
+	L["new"] = "Nuevo"
+	L["new_sub"] = "Crear un nuevo perfil vacio."
+	L["choose"] = "Perfiles existentes"
+	L["choose_sub"] = "Selecciona uno de los perfiles disponibles."
+	L["copy_desc"] = "Copia los ajustes de un perfil existente al perfil actual."
+	L["copy"] = "Copiar de"
+	L["delete_desc"] = "Borra los perfiles existentes y sin uso de la base de datos para ganar espacio y limpiar el archivo SavedVariables."
+	L["delete"] = "Borrar un Perfil"
+	L["delete_sub"] = "Borra un perfil de la base de datos."
+	L["delete_confirm"] = "¿Estas seguro que quieres borrar el perfil seleccionado?"
+	L["profiles"] = "Perfiles"
+	L["profiles_sub"] = "Manejar Perfiles"
 elseif LOCALE == "zhTW" then
 	L["default"] = "預設"
 	L["intro"] = "你可以選擇一個活動的資料設定檔，這樣你的每個角色就可以擁有不同的設定值，可以給你的插件設定帶來極大的靈活性。" 
@@ -231,6 +248,11 @@ function OptionsHandlerPrototype:ListProfiles(info)
 	return profiles
 end
 
+function OptionsHandlerPrototype:HasNoProfiles(info)
+	local profiles = self:ListProfiles(info)
+	return ((not next(profiles)) and true or false)
+end
+
 --[[ Copy a profile ]]
 function OptionsHandlerPrototype:CopyProfile(info, value)
 	self.db:CopyProfile(value)
@@ -324,6 +346,7 @@ local optionsTable = {
 		get = false,
 		set = "CopyProfile",
 		values = "ListProfiles",
+		disabled = "HasNoProfiles",
 		arg = "nocurrent",
 	},
 	deldesc = {
@@ -339,6 +362,7 @@ local optionsTable = {
 		get = false,
 		set = "DeleteProfile",
 		values = "ListProfiles",
+		disabled = "HasNoProfiles",
 		arg = "nocurrent",
 		confirm = true,
 		confirmText = L["delete_confirm"],

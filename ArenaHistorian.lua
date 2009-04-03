@@ -1,5 +1,5 @@
 --[[ 
-	Arena Historian Mayen (Horde) from Icecrown (US) PvE
+	Arena Historian Mayen (Horde) from Illidan (US) PvP
 ]]
 
 ArenaHistorian = LibStub("AceAddon-3.0"):NewAddon("ArenaHistorian", "AceEvent-3.0")

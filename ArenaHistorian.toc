@@ -1,4 +1,4 @@
-## Interface: 30000
+## Interface: 31000
 ## Title: Arena Historian
 ## Version: $Revision$
 ## Author: Mayen
