@@ -565,14 +565,11 @@ local function updateCache()
 			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
 				local arenaZone, _, runTime, playerWon, pSkill, pRating, pChange, eSkill, eRating, eChange, eServer, pServer = getMatchData(string.split(":", matchData))
-				
-				if( pSkill > 0 or eSkill > 0 ) then
-					print(arenaZone, runTime, playerWon, pServer, pSkill, pRating, eServer, eSkill, eRating)
-				end
-				
+								
 				if( arenaZone == "" ) then
 					arenaZone = L["Unknown"]
 				end
+				
 				-- Generate the player and enemy team mate info
 				local playerTeam, playerTeamID, playerTeamClassID = parseTeamData(string.split(":", playerTeam))
 				local enemyTeam, enemyTeamID, enemyTeamClassID = parseTeamData(string.split(":", enemyTeam))
@@ -603,7 +600,7 @@ local function updateCache()
 				else
 					result = 0
 				end
-
+	
 				-- Match information
 				local matchTbl = {
 					zone = arenaZone,
@@ -620,12 +617,14 @@ local function updateCache()
 					pServer = pServer ~= "" and pServer or nil,
 					pRating = tonumber(pRating) or 0,
 					pChange = tonumber(pChange) or 0,
+					pSkill = tonumber(pSkill) or 0,
 					
 					eTeamName = enemyTeamName,
 					eTeamClasses = enemyTeamClassID,
 					eServer = eServer ~= "" and eServer or nil,
 					eRating = tonumber(eRating) or 0,
 					eChange = tonumber(eChange) or 0,
+					eSkill = tonumber(eSkill) or 0,
 					
 					playerTeam = playerTeam,
 					enemyTeam = enemyTeam,
@@ -998,14 +997,28 @@ local function updateHistoryPage()
 
 				-- Enemy team display
 				row.enemyTeam:SetText(matchInfo.eTeamName)
-				row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
-
+				
+				if( matchInfo.eSkill == 0 ) then
+					row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
+					row.enemyInfo.tooltip = nil
+				else
+					row.enemyInfo:SetFormattedText(L["%d TR (%d MMR)"], matchInfo.eRating, matchInfo.eSkill)
+					row.enemyInfo.tooltip = string.format(L["%d Points"], matchInfo.eChange)
+				end
+					
 				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam, matchInfo.eTeamName, matchInfo.eServer, matchInfo.teamID)
 
 				-- Player team display
 				row.playerTeam:SetText(matchInfo.pTeamName)
-				row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
-
+				
+				if( matchInfo.pSkill == 0 ) then
+					row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
+					row.playerInfo.tooltip = nil
+				else
+					row.playerInfo:SetFormattedText(L["%d TR (%d MMR)"], matchInfo.pRating, matchInfo.pSkill)
+					row.playerInfo.tooltip = string.format(L["%d Points"], matchInfo.eChange)
+				end
+					
 				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.pServer, matchInfo.teamID)
 
 				-- Green border if we won, red if we lost, yellow if draw

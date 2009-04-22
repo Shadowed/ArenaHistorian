@@ -6,6 +6,8 @@ ArenaHistLocals = {
 	["Stats"] = "Stats",
 	
 	["%d Rating (%d Points)"] = "%d Rating (%d Points)",
+	["%d TR (%d MMR)"] = "%d TR (%d MMR)",
+	["%d Points"] = "%d Points",
 	
 	["Run Time: %s"] = "Run Time: %s",
 	["Record: %s/%s"] = "Record: %s/%s",
