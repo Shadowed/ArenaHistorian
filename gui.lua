@@ -536,6 +536,15 @@ function updateStatCache()
 	end
 end
 
+local function getMatchData(...)
+	if( select("#", ...) == 10 ) then
+		local arenaZone, bracket, runTime, playerWon, pRating, pChange, eRating, eChange, eServer, pServer = select(1, ...)
+		return arenaZone, bracket, runTime, playerWon, 0, pRating, pChange, 0, eRating, eChange, eServer, pServer
+	else
+		return select(1, ...)
+	end
+end
+
 -- Updates our data cache
 local function updateCache()
 	local self = GUI
@@ -555,7 +564,12 @@ local function updateCache()
 			
 			if( playerTeamName ~= "" and enemyTeamName ~= "" and endTime ) then
 				local matchData, playerTeam, enemyTeam = string.split(";", data)
-				local arenaZone, _, runTime, playerWon, pRating, pChange, eRating, eChange, eServer, pServer = string.split(":", matchData)
+				local arenaZone, _, runTime, playerWon, pSkill, pRating, pChange, eSkill, eRating, eChange, eServer, pServer = getMatchData(string.split(":", matchData))
+				
+				if( pSkill > 0 or eSkill > 0 ) then
+					print(arenaZone, runTime, playerWon, pServer, pSkill, pRating, eServer, eSkill, eRating)
+				end
+				
 				if( arenaZone == "" ) then
 					arenaZone = L["Unknown"]
 				end

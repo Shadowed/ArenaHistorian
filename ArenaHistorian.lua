@@ -122,16 +122,17 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 	end
 
 	-- Record rating/team names
-	local playerIndex, playerName, playerRating, playerChange, enemyName, enemyRating, enemyChange
+	local playerIndex, playerName, playerRating, playerChange, playerSkill, enemyName, enemyRating, enemyChange, enemySkill
 	local playerWon = -1
 
 	for i=0, 1 do
-		local teamName, oldRating, newRating = GetBattlefieldTeamInfo(i)
+		local teamName, oldRating, newRating, teamSkill = GetBattlefieldTeamInfo(i)
 		if( arenaTeams[teamName .. bracket] ) then
 			playerName = teamName
 			playerRating = newRating
 			playerChange = newRating - oldRating
-
+			playerSkill = teamSkill
+			
 			if( GetBattlefieldWinner() == i ) then
 				playerWon = 1
 			end
@@ -141,6 +142,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 			enemyName = teamName
 			enemyRating = newRating
 			enemyChange = newRating - oldRating
+			enemySkill = teamSkill
 		end
 	end
 
@@ -236,7 +238,7 @@ function ArenaHistorian:UPDATE_BATTLEFIELD_SCORE()
 
 	local runTime = GetBattlefieldInstanceRunTime() or 0
 	local index = string.format("%d::%s::%s", time(), playerName, enemyName)
-	local data = string.format("%s:%d:%d:%s:%d:%d:%d:%d:%s:%s;%s;%s", zoneText, bracket, runTime, playerWon, playerRating, playerChange, enemyRating, enemyChange, enemyServer, GetRealmName(), table.concat(playerData, ":"), table.concat(enemyData, ":"))
+	local data = string.format("%s:%d:%d:%s:%d:%s:%d:%d:%d:%d:%s:%s;%s;%s", zoneText, bracket, runTime, playerWon, playerSkill, playerRating, playerChange, enemySkill, enemyRating, enemyChange, enemyServer, GetRealmName(), table.concat(playerData, ":"), table.concat(enemyData, ":"))
 
 	-- Save
 	ArenaHistoryData[bracket][index] = data
