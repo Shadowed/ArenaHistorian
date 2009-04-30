@@ -62,24 +62,6 @@ function GUI:GetSpecName(class, spec)
 		return "INV_Misc_QuestionMark", L["Unknown"], L["Unknown"]
 	end
 
-	-- Check for a hybrid spec
-	--[[
-	local deepTrees = 0
-	if( tree1 >= DEEP_THRESHOLD ) then
-		deepTrees = deepTrees + 1
-	end
-	if( tree2 >= DEEP_THRESHOLD ) then
-		deepTrees = deepTrees + 1
-	end
-	if( tree3 >= DEEP_THRESHOLD ) then
-		deepTrees = deepTrees + 1
-	end
-
-	if( deepTrees > 1 ) then
-		return "Spell_Nature_ElementalAbsorption", string.format("%d/%d/%d", tree1, tree2, tree3), 
-	end
-	]]
-	
 	-- Now check specifics
 	if( tree1 > tree2 and tree1 > tree3 ) then
 		return TREE_ICONS[class][1], string.format("%d/%d/%d", tree1, tree2, tree3), TREE_NAMES[class][1]
@@ -769,8 +751,11 @@ local function setStatPage(id, statData, ...)
 		local text = L[classToken]
 		if( GUI.frame.bracket > 2 ) then
 			text = string.sub(classToken, 0, 1)
+		-- Fucking DK's are too long regardless
+		elseif( classToken == "DEATHKNIGHT" ) then
+			text = L["DK"]
 		end
-		
+
 		-- Create a full make up for the tooltip
 		if( i > 1 ) then
 			makeup = makeup .. "|cffffffff/|r" .. wrapClassColor(classToken, text)
@@ -1000,10 +985,8 @@ local function updateHistoryPage()
 				
 				if( matchInfo.eSkill == 0 ) then
 					row.enemyInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.eRating, matchInfo.eChange)
-					row.enemyInfo.tooltip = nil
 				else
-					row.enemyInfo:SetFormattedText(L["%d TR (%d MMR)"], matchInfo.eRating, matchInfo.eSkill)
-					row.enemyInfo.tooltip = string.format(L["%d Points"], matchInfo.eChange)
+					row.enemyInfo:SetFormattedText("%d (%d, %d)", matchInfo.eRating, matchInfo.eChange, matchInfo.eSkill)
 				end
 					
 				setupTeamInfo(nameLimit, fsLimit, row.enemyRows, matchInfo.enemyTeam, matchInfo.eTeamName, matchInfo.eServer, matchInfo.teamID)
@@ -1013,10 +996,8 @@ local function updateHistoryPage()
 				
 				if( matchInfo.pSkill == 0 ) then
 					row.playerInfo:SetFormattedText(L["%d Rating (%d Points)"], matchInfo.pRating, matchInfo.pChange)
-					row.playerInfo.tooltip = nil
 				else
-					row.playerInfo:SetFormattedText(L["%d TR (%d MMR)"], matchInfo.pRating, matchInfo.pSkill)
-					row.playerInfo.tooltip = string.format(L["%d Points"], matchInfo.eChange)
+					row.playerInfo:SetFormattedText("%d (%d, %d)", matchInfo.pRating, matchInfo.pSkill, matchInfo.pSkill)
 				end
 					
 				setupTeamInfo(nameLimit, fsLimit, row.playerRows, matchInfo.playerTeam, matchInfo.pTeamName, matchInfo.pServer, matchInfo.teamID)

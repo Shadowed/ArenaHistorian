@@ -87,7 +87,6 @@ ArenaHistLocals = {
 		["BLOODELF_FEMALE"] = "Blood Elf",
 		["TAUREN_FEMALE"] = "Tauren",
 		["DRAENEI_FEMALE"] = "Draenei",
-		
 	},
 	
 	-- Zone -> abbreviation
@@ -145,6 +144,8 @@ ArenaHistLocals = {
 	["HUNTER"] = "Hunter",
 	["ROGUE"] = "Rogue",
 	["DEATHKNIGHT"] = "Death Knight",
+	
+	["DK"] = "DK",
 	
 	-- Tree names
 	["Elemental"] = "Elemental",
