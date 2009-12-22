@@ -531,7 +531,7 @@ function Sync:CreateGUI()
 	self.frame.bracket:SetPoint("TOPLEFT", self.frame, "TOPLEFT", 120, -26)
 	self.frame.bracket:SetScript("OnShow", function(self)
 		UIDropDownMenu_Initialize(AHSyncBracket, initDropdown)
-		UIDropDownMenu_SetWidth(55, AHSyncBracket)
+		UIDropDownMenu_SetWidth(AHSyncBracket, 55)
 		UIDropDownMenu_SetSelectedValue(AHSyncBracket, 2)
 	end)
 
