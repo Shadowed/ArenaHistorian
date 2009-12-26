@@ -22,6 +22,7 @@ localization.deDE.lua
 localization.zhCN.lua
 localization.zhTW.lua
 localization.frFR.lua
+localization.ruRU.lua
 
 ArenaHistorian.lua
 sync.lua
