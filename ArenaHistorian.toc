@@ -15,7 +15,7 @@ lib\AceGUI-3.0\AceGUI-3.0.xml
 lib\AceConfig-3.0\AceConfig-3.0.xml
 lib\AceComm-3.0\AceComm-3.0.xml
 lib\AceEvent-3.0\AceEvent-3.0.xml
-libs\TalentGuess-1.1\TalentGuess-1.1.xml
+lib\TalentGuess-1.1\TalentGuess-1.1.xml
 
 localization.enUS.lua
 localization.deDE.lua
